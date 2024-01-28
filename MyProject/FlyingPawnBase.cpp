@@ -187,81 +187,6 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 	GEngine->AddOnScreenDebugMessage(12, 5, FColor::Purple, FString::Printf(TEXT("12 YZ Velocity Added due to force unscaled by Framerate: %f"),
 		(localized_velocity_linger.Length() - local_axes_rotator.UnrotateVector(MainBody->GetPhysicsLinearVelocity()).Length()) * (1 / DeltaTime)));
 
-	
-		
-
-	
-
-	//FVector localized_drag_velocity = FVector(
-	//	0,
-	//	//GetXVelAfterDrag(new_input_velocity_influence.X, localized_velocity_linger.X, DeltaTime),
-	//	YZ_drag_velocity.Y,
-	//	YZ_drag_velocity.Z
-	//	//GetYVelAfterDrag(new_input_velocity_influence.Y, localized_velocity_linger.Y, DeltaTime),
-	//	//GetZVelAfterDrag(new_input_velocity_influence.Z, localized_velocity_linger.Z, DeltaTime)
-	//);
-
-	//Un-localize velocity_final: point it in the direction of the pawn. The direction of the pawn is relative to the world axis which is why we say it is un-localized. 
-	//MainBody->SetPhysicsLinearVelocity(local_axes_rotator.RotateVector(localized_drag_velocity), /*addtocurrent*/ true);
-	//MainBody->SetPhysicsLinearVelocity(local_axes_rotator.RotateVector(new_input_velocity_influence) * DeltaTime, true);
-
-
-
-	//FVector just_z_stuff = FVector(0, 0 /*GetYDrag(new_input_velocity_influence.Y, localized_velocity_linger.Y, DeltaTime)*/, GetZVelAfterDrag(new_input_velocity_influence.Z, localized_velocity_linger.Z, DeltaTime));
-	//new_input_velocity_influence.Z = 0.0f;
-	//new_input_velocity_influence.Y = 0.0f;
-	//MainBody->SetPhysicsLinearVelocity(local_axes_rotator.RotateVector(just_z_stuff), /*addtocurrent*/ false);
-
-
-	//if (localized_velocity_linger.X >= 0) {
-	//	localized_velocity_linger.X = localized_velocity_linger.X - ((FMath::Clamp(FMath::Abs(localized_velocity_linger.X) / 10000, 0, 1)) * localized_velocity_linger.X);
-	//	//reduces forward X velocity based on how large it is currently with a linear scaling
-	//	//it's not actually linear afterall
-	//}
-	//else {
-	//	localized_velocity_linger.X = localized_velocity_linger.X + ((FMath::Clamp(
-	//		(FMath::Abs(localized_velocity_linger.X) / 10000), 0, 1))
-	//		* FMath::Abs(localized_velocity_linger.X));
-	//	//reduces backward X velocity based on how large it is currently with a linear scaling
-	//}
-	//GEngine->AddOnScreenDebugMessage(6, 1, FColor::Blue, FString::Printf(TEXT("6 Lingering Velocity %s"), *localized_velocity_linger.ToString()));
-
-
-
-
-	//FVector final_velocity = FVector(0);
-
-	//We are trying to move forward right now
-	//if (new_input_velocity_influence.X > 0)
-	//{
-	//	final_velocity.X = ComputeVelocityWithAcceleration(FVector(new_input_velocity_influence.X,0,0), FVector(localized_velocity_linger.X, 0, 0), .002f);
-	//}
-	////We are breaking from forward movement or trying to move backwards
-	//else if (new_input_velocity_influence.X <= 0)
-	//{
-	//	final_velocity.X = ComputeVelocityWithDeceleration(FVector(new_input_velocity_influence.X, 0, 0), FVector(localized_velocity_linger.X, 0, 0), 0.0001f);
-	//}
-
-
-
-	//Add two velocities together, then re-express in terms of local facing direction and apply. 
-		//idea to take a portion of what lingers and put it in the direction of facing rather than the direction it was originally pointing
-	//FVector final_velocity = localized_velocity_linger + new_input_velocity_influence;
-
-
-	//FVector last_position = this->GetLastMovementInputVector(); //make sure these are in terms of local axis, not world coordiantes
-	//FVector pending_position = this->GetPendingMovementInputVector(); //...
-
-	//Get intended local velocity based on previous movement vector
-
-		//check for limits 
-
-	//Apply drag forces/simulate acceleration or deceleration based on orientation
-
-	//Apply Result Scaled By Frametime And Clean Inputs
-	//FVector debug = this->ConsumeMovementInputVector();
-	//this->AddActorLocalOffset(debug * DeltaTime);
-	//GEngine->AddOnScreenDebugMessage(1, 1, FColor::Green, FString::Printf(TEXT("Velocity Input: %s"), *debug.ToString()));
 
 
 //!!Replicate Final Result to Server (only as the client) 
@@ -491,33 +416,6 @@ bool AFlyingPawnBase::InitialBoost()
 	}
 
 }
-
-
-
-
-//For softcap math (Acceleration) 
-	/*
-	* Two options:
-	* 1. Use y = (x+z)/x^const; x: lingering velocity, z: input velocity, y = set velocity that frame
-	*	Where the growth of velocity due to lingering velocity (x) grows incresingly weaker on the resulting final velocity
-	*
-	* 2. Use z0+z1 - x^2; x: drag, z0: accumulated/lingering velocity, z1: additional input velocity
-	*	Where drag is a portion of last frame's compounding input velocity
-	*	Drag increasing exponentially until compounding velocity from adding z1 and x^2 cancel out
-	*
-	* Method 1 will probably have more lingering velocity so the actor will not slow down very quickly at all.
-	* Method 2 has the opposite problem where it will slow down incredibly fast
-	* For slowing down (decceleration) we can fix with just a branch statement to check if deccelerating or not
-	* But I think method 2 will reach peak speed much faster, where method 1 has a lot more room for different speeds which could be more interesting gameplay wise.
-	*/
-
-	//For softcap math (Decceleration)
-	/*
-	* y = (-1)z + abs(x)^const; x: lingering velocity, y = set velocity that frame, z: input velocity when current velocity (x) is in opposite direction, const: some constant value to scale drop off speed
-	*	Where the lingering velocity (x) is retained but drops off faster as actor gets slower.
-	*	Input velocity (z) should be zero when no thrust is being applied, however if thrust is being applied and it is in the opposite direction of where the actor is currently moving, it would be relatively negative to lingering velocity (x).
-		Allows very high speeds to be maintained but slower speeds drop off quicker.
-	*/
 
 //Always returns correct negative or positive float
 float AFlyingPawnBase::VelocityFromEXPOFastDrag(float desired_vel_increase, float lingering_vel, float momentum_dropoff_strength, float delta_time, float accel_scaling)
