@@ -22,15 +22,17 @@ AFlyingPawnBase::AFlyingPawnBase()
 //Attribute Defaults
 	base_upward_thrust = 100,000; //equivalent to 2500 velocity every frame (before delta_time scaling)
 	base_downward_thrust = 60,000;
-	base_forward_thrust = 100,000;
-	base_brake_power = 50,000;
+	base_forward_thrust = 200,000;
+	base_brake_power = 80,000;
 	base_yaw_amnt = 25;	
-	max_pitch_speed = 200;
-	max_roll_speed = 300;
+	max_pitch_speed = 190;
+	max_roll_speed = 250;
 
 	pitch_sensitivity = 0.5;
 	roll_sensitivity = 15;
 	yaw_sensitivity = 1.0;
+
+	global_acceleration_scaling = 1.2f;
 
 	YZaxis_vel_soft_cap = 1500;
 	YZaxis_drag_min_soft_cap = 1.0;
@@ -48,10 +50,10 @@ AFlyingPawnBase::AFlyingPawnBase()
 	initial_boost_cooldown = 1;
 	boost_strength = 130,000;
 
-	b_use_ratio_for_flightmode = true;
-	jet_hover_ratio_threshold = 3.0f;
+	b_use_ratio_for_boostermode = true;
+	jet_hover_ratio_threshold = 2.5f;
 	jet_speed_threshold = 0;
-	constraint_velocity_target = 0.2f;
+	constraint_velocity_target = 0.9f;
 
 // Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -143,11 +145,12 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 	//Handle Yaw
 	this->incoming_input_rotation.Yaw = this->incoming_input_rotation.Yaw * DeltaTime;
 
+
 	//Apply angular roll momentum if slowing down or changing direction
-	this->incoming_input_rotation.Roll = HandleRoll(DeltaTime);
+	this->incoming_input_rotation.Roll = bcoupled_flight_enabled? HandleRoll(DeltaTime) : 0.5f * HandleRoll(DeltaTime);
 
 	//Handle Pitch
-	this->incoming_input_rotation.Pitch = HandlePitch(DeltaTime);
+	this->incoming_input_rotation.Pitch = bcoupled_flight_enabled? HandlePitch(DeltaTime) : 0.5f * HandlePitch(DeltaTime);
 	
 	//Add all rotators together to the current rotation (input rotation is usually already scaled by time) 
 	this->AddActorLocalRotation(this->incoming_input_rotation);
@@ -156,12 +159,28 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 	this->incoming_input_rotation = FRotator(0); //is it possible to get inputs in the middle of this tick function? that would not really be that bad but kinda weird sideeffect 
 	this->digital_roll_input = 0;
 
-//!!Process incomming movement input
+//!!Process incoming movement input
 
 	FRotator local_axes_rotator = MainBody->GetRelativeRotation();
+	FVector new_input_velocity_influence = this->ConsumeMovementInputVector() * this->global_acceleration_scaling; //get acceleration to apply this frame * scaling factor
 	
-	FVector new_input_velocity_influence = this->ConsumeMovementInputVector(); 
-	MainBody->AddForce(local_axes_rotator.RotateVector(new_input_velocity_influence)); //could be viable to use add velocity instead of add force. Since add velocity each frame is essentially just acceleration. But we have to be sure to add velocity scaled with time. The benefit of using add force is that it is affected by the objects mass which we can adjust. 
+	/*EXPERIMENTAL increase thrust in all directions from flight mode*/
+	if (!bcoupled_flight_enabled)
+	{
+		new_input_velocity_influence = new_input_velocity_influence * 1.5;
+	}
+
+	/*EXPERIMENTAL (can't really tell a difference between velocity and thrust overall)*/
+	if (bthrust_as_velocity)
+	{
+		new_input_velocity_influence = DeltaTime* (new_input_velocity_influence / MainBody->GetMass());
+		MainBody->SetAllPhysicsLinearVelocity(local_axes_rotator.RotateVector(new_input_velocity_influence), /*add to current*/ true); //could be viable to use add velocity instead of add force. Since add velocity each frame is essentially just acceleration. But we have to be sure to add velocity scaled with time. The benefit of using add force is that it is affected by the objects mass which we can adjust. 
+	}
+	else
+	{
+		MainBody->AddForce(local_axes_rotator.RotateVector(new_input_velocity_influence)); //could be viable to use add velocity instead of add force. Since add velocity each frame is essentially just acceleration. But we have to be sure to add velocity scaled with time. The benefit of using add force is that it is affected by the objects mass which we can adjust. 
+	}
+
 
 
 	FVector world_velocity_linger = MainBody->GetPhysicsLinearVelocity(); //lingering velocity of the actor from previous frame
@@ -169,12 +188,11 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 	
 	//Based on how the pawn is moving, determine what flight mode the pawn is in 
 		//mostly just applies rotational velocity to simulated_booster for now
-	this->ResolveFlightMode(localized_velocity_linger);
+	this->ResolveBoosterMode(localized_velocity_linger);
 
 
 	GEngine->AddOnScreenDebugMessage(11, 5, FColor::Cyan, FString::Printf(TEXT("11 Velocity Magnitude %f"), this->GetVelocity().Length()));
 	GEngine->AddOnScreenDebugMessage(7, 5, FColor::Blue, FString::Printf(TEXT("7 Local Velocity %s"), *local_axes_rotator.UnrotateVector(MainBody->GetPhysicsLinearVelocity()).ToString()));
-
 
 	//Add counter velocity to simulate drag on the pawn
 	FVector X_drag_velocity = GetXDrag(localized_velocity_linger.X, DeltaTime);
@@ -279,10 +297,12 @@ void AFlyingPawnBase::PassTransformToServer_Implementation(FTransform final_worl
 }
 
 
+
 void AFlyingPawnBase::PassVelToServer_Implementation(FVector final_world_velocity)
 {
 	MainBody->SetAllPhysicsLinearVelocity(final_world_velocity);
 }
+
 
 
 void AFlyingPawnBase::ApplyForwardThrust()
@@ -326,14 +346,24 @@ void AFlyingPawnBase::ApplyVertThrustDOWN()
 
 
 
-void AFlyingPawnBase::DecoupleEngines()
+void AFlyingPawnBase::SimDecoupledFlight(FVector localized_velocity_linger, float DeltaTime)
 {
+	FVector X_drag_velocity = GetXDrag(localized_velocity_linger.X, DeltaTime);
+	MainBody->SetPhysicsLinearVelocity(X_drag_velocity, /*addtocurrent*/ true);
+
+	FVector YZ_drag_velocity = GetYZDrag(FVector(0, localized_velocity_linger.Y, localized_velocity_linger.Z), DeltaTime);
+	MainBody->SetPhysicsLinearVelocity(YZ_drag_velocity, /*addtocurrent*/ true);
 }
 
 
 
-void AFlyingPawnBase::RecoupleEngines()
+void AFlyingPawnBase::SimCoupledFlight(FVector localized_velocity_linger, float DeltaTime)
 {
+	FVector X_drag_velocity = GetXDrag(localized_velocity_linger.X, DeltaTime);
+	MainBody->SetPhysicsLinearVelocity(X_drag_velocity, /*addtocurrent*/ true);
+
+	FVector YZ_drag_velocity = GetYZDrag(FVector(0, localized_velocity_linger.Y, localized_velocity_linger.Z), DeltaTime);
+	MainBody->SetPhysicsLinearVelocity(YZ_drag_velocity, /*addtocurrent*/ true);
 }
 
 
@@ -416,6 +446,8 @@ bool AFlyingPawnBase::InitialBoost()
 	}
 
 }
+
+
 
 //Always returns correct negative or positive float
 float AFlyingPawnBase::VelocityFromEXPOFastDrag(float desired_vel_increase, float lingering_vel, float momentum_dropoff_strength, float delta_time, float accel_scaling)
@@ -597,13 +629,27 @@ FVector AFlyingPawnBase::GetXDrag(float lingering_x_velocity, float delta_time)
 		*
 		* Steady state exists when added velocity each frame (acceleration) equals the drag, which is equal to the actual current velocity (lingering velocity) divided by c. This only holds true when soft_cap_strength is 1 though; otherwise it would be non-linear. 
 		*/
-		if (lingering_x_velocity >= this->forward_vel_soft_cap)
+		if (this->bcoupled_flight_enabled)
 		{
-			float drag_porportion = lingering_x_velocity / this->forward_drag_intensity; 
-			float drag_proportion_after_exp = FMath::Pow(drag_porportion, this->forward_soft_cap_strength);
+			if (lingering_x_velocity >= this->forward_vel_soft_cap)
+			{
+				float drag_porportion = lingering_x_velocity / this->forward_drag_intensity;
+				float drag_proportion_after_exp = FMath::Pow(drag_porportion, this->forward_soft_cap_strength);
 
-			return -1.0f * MainBody->GetForwardVector() * drag_proportion_after_exp * delta_time;
+				return -1.0f * MainBody->GetForwardVector() * drag_proportion_after_exp * delta_time * this->global_acceleration_scaling; 
+			}
 		}
+		else
+		{
+			if (lingering_x_velocity >= this->forward_vel_soft_cap + this->forward_decoupled_offset)
+			{
+				float drag_porportion = lingering_x_velocity / this->forward_drag_intensity;
+				float drag_proportion_after_exp = FMath::Pow(drag_porportion, this->forward_soft_cap_strength);
+
+				return -1.0f * MainBody->GetForwardVector() * drag_proportion_after_exp * delta_time * this->global_acceleration_scaling;
+			}
+		}
+
 
 		//drag to apply when less than softcap
 		return FVector(0); 
@@ -775,33 +821,41 @@ FVector AFlyingPawnBase::GetYZDrag(FVector lingering_yz_velocity, float delta_ti
 	* 
 	* Steady state exists when added velocity each frame (acceleration) equals the drag which is equal to the actual current velocity (lingering velocity)
 	*/
-	if (lingering_yz_velocity.Length() > this->YZaxis_vel_soft_cap)
+	if (this->bcoupled_flight_enabled)
 	{
-		FRotator local_axis_rotator = MainBody->GetRelativeRotation();
-		return -1.0f * local_axis_rotator.RotateVector(lingering_yz_velocity) * delta_time;
-	
+		if (lingering_yz_velocity.Length() > this->YZaxis_vel_soft_cap)
+		{
+			FRotator local_axis_rotator = MainBody->GetRelativeRotation();
+			return -1.0f * local_axis_rotator.RotateVector(lingering_yz_velocity) * delta_time * this->global_acceleration_scaling;
+		}
 	}
+	else
+	{
+		if (lingering_yz_velocity.Length() > this->YZaxis_vel_soft_cap + this->YZAxis_decoupled_offset)
+		{
+			FRotator local_axis_rotator = MainBody->GetRelativeRotation();
+			return -1.0f * local_axis_rotator.RotateVector(lingering_yz_velocity) * delta_time * this->global_acceleration_scaling;
+		}
+	}
+	
 	/*
 	* Dampen currenty velocity faster as it gets slower
 	* Weaker dampening as velocity gets faster. 
 	*/
-	else
-	{
-		FRotator local_axis_rotator = MainBody->GetRelativeRotation();
-		FVector drag_amount = DragFromLOG(lingering_yz_velocity, delta_time, this->YZaxis_drag_min_soft_cap);
+	FRotator local_axis_rotator = MainBody->GetRelativeRotation();
+	FVector drag_amount = DragFromLOG(lingering_yz_velocity, delta_time, this->YZaxis_drag_min_soft_cap);
 
-		return local_axis_rotator.RotateVector(drag_amount); //convert the drag expressed along the local axis to world coordinates
-	}
+	return local_axis_rotator.RotateVector(drag_amount); //convert the drag expressed along the local axis to world coordinates
 }
 
 
 
-void AFlyingPawnBase::ResolveFlightMode(FVector current_local_velocity)
+void AFlyingPawnBase::ResolveBoosterMode(FVector current_local_velocity)
 {
 	float local_forward_magnitude = current_local_velocity.X;
 	float local_vertical_magnitude = FVector2D(current_local_velocity.Y, current_local_velocity.Z).Length();
 
-	if (this->b_use_ratio_for_flightmode)
+	if (this->b_use_ratio_for_boostermode)
 	{
 		if (local_forward_magnitude * this->jet_hover_ratio_threshold > local_vertical_magnitude){
 			this->BoosterHingeAttachement->SetAngularVelocityTarget(FVector(0,this->constraint_velocity_target,0));

@@ -66,6 +66,15 @@ public:
 	/*
 	* Scales how quickly the pawn accelerates (mostly by just multiplying by delta time)
 	*/
+
+	/*
+	* Experimental modifier to increase acceleration amount without affecting soft-cap thresholds of the pawn.
+	* 
+	* Multiplies the thrust amount and drag amount (at soft cap thresholds) every frame. 
+	*/
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
+	float global_acceleration_scaling;
+
 	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
 	float upward_accel_scale;
 
@@ -92,7 +101,7 @@ public:
 	float max_roll_speed; 
 
 
-	//Simulating Pawn Momentum Stuff
+	//Simulating Pawn Drag Stuff
 	/* How quickly the pawn decelerates from drag and partially affects how quickly it accelerates to higher speeds
 	
 	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
@@ -104,6 +113,13 @@ public:
 	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float YZaxis_vel_soft_cap;
+
+	/*
+	* experimental
+	* soft cap offset when pawn is in decoupled flight
+	*/
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
+	float YZAxis_decoupled_offset;
 
 	/* Factor of how large the minimum speed is for speed in the YZ axis. As this parameter increases, the minimum speed allowed before fully stopping will be larger
 	
@@ -124,6 +140,13 @@ public:
 	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float forward_vel_soft_cap;
+
+	/*
+	* experimental
+	* soft cap offset when pawn is in decoupled flight 
+	*/
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
+	float forward_decoupled_offset;
 
 	/* Strength of the softcap gets stronger as this parameter increases. Reducing maximum speed.
 	Use for microadjustments to the curve of the drag.
@@ -211,7 +234,7 @@ public:
 	* Determines speed ratio threshold of forward and vertical velocity that must be achieved to change flight modes 
 	*/
 	UPROPERTY(EditAnywhere, Category="Movement|Flight Mode")
-	bool b_use_ratio_for_flightmode;
+	bool b_use_ratio_for_boostermode;
 
 	UPROPERTY(EditAnywhere, Category = "Movement|Flight Mode")
 	float jet_hover_ratio_threshold;
@@ -287,14 +310,20 @@ protected:
 	*	Significantly weaken all thruster controls but allow pawn to retain momentum much easier
 	*  not implemented
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Movement|Advanced")
-	void DecoupleEngines();
+	//UFUNCTION(BlueprintCallable, Category = "Movement|Advanced")
+	void SimDecoupledFlight(FVector localized_velocity_linger, float DeltaTime);
 
 	/*
 	* not implemented
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Movement|Advanced")
-	void RecoupleEngines();
+	//UFUNCTION(BlueprintCallable, Category = "Movement|Advanced")
+	void SimCoupledFlight(FVector localized_velocity_linger, float DeltaTime);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Advanced")
+	bool bcoupled_flight_enabled;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Advanced")
+	bool bthrust_as_velocity;
 
 
 	//Rotation
@@ -368,10 +397,10 @@ protected:
 	float DragFromLOG(float lingering_velocity, float delta_time, float drag_scaling);
 
 
-	//Specific Axis Drag function. Currently ticked every frame and applied against velocity in that tick
+	/*Specific Axis Drag function.Currently ticked every frame and applied against velocity in that tick*/
 	FVector GetXDrag(float lingering_x_velocity, float delta_time);
 
-	//Specific Axis Drag function. Currently ticked every frame and applied against velocity in that tick
+	/*Specific Axis Drag function. Currently ticked every frame and applied against velocity in that tick*/
 	FVector GetYZDrag(FVector lingering_yz_velocity, float delta_time);
 	
 	
@@ -384,7 +413,7 @@ protected:
 	* 
 	* May be one day useful to make this function return or set an ENUM which represents the flight mode types, so that way we can access the flight mode and do additional logic outside this class or in BP.
 	*/
-	void ResolveFlightMode(FVector current_local_velocity);
+	void ResolveBoosterMode(FVector current_local_velocity);
 
 //NETWORKING AND SERVER REPLICATION
 	//Translation & Rotation
