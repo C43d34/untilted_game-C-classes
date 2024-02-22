@@ -24,30 +24,28 @@ private:
 	float max_time;
 	float cur_time;
 
+	//Used as accumulator to make rolling smooth out when slowing down
 	float lingering_roll_velocity;
 
+	//Accumulated rotator inputs every frame. Should be reset at the end of every tick. 
 	FRotator incoming_input_rotation;
-
-
 public:
 	// Sets default values for this pawn's properties
 	AFlyingPawnBase();
 
 	
 	//Sensitivity and input strength Settings
-
 	UPROPERTY(EditAnywhere, Category = "Movement|Sensitivity")
 	float pitch_sensitivity;
 
+	//Sensitivity and input strength Settings
 	UPROPERTY(EditAnywhere, Category = "Movement|Sensitivity")
 	float roll_sensitivity;
 
-
-	/*
-	* Clamped to between 0 and 1
-	*/
-	UPROPERTY(EditAnywhere, Category = "Movement|Sensitivity")
+	//Sensitivity and input strength Settings
+	UPROPERTY(EditAnywhere, Category = "Movement|Sensitivity", meta=(UIMin = "0", UIMax= "1.0"))
 	float yaw_sensitivity;
+
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float base_upward_thrust;
@@ -61,16 +59,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float base_brake_power;
 
-
-	//Pawn acceleration stuff
-	/*
-	* Scales how quickly the pawn accelerates (mostly by just multiplying by delta time)
-	*/
-
 	/*
 	* Experimental modifier to increase acceleration amount without affecting soft-cap thresholds of the pawn.
 	* 
 	* Multiplies the thrust amount and drag amount (at soft cap thresholds) every frame. 
+	* Makes the pawn acceleration (and deceleration) feel more responsive.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float global_acceleration_scaling;
@@ -90,29 +83,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
 	float sideways_accel_scale;
 
-
+	//Amount of degrees per second the pawn will yaw left or right
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float base_yaw_amnt;
 
+	//Max amount of degrees the pawn can pitch per second
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float max_pitch_speed;
 
+	//Max amount of degrees the pawn can roll per second
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float max_roll_speed; 
 
-
-	//Simulating Pawn Drag Stuff
-	/* How quickly the pawn decelerates from drag and partially affects how quickly it accelerates to higher speeds
-	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float YZaxis_drag_intensity;
-
-	/* Point at which the pawn will start to be affected by linear scaling drag
-	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
-	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
-	float YZaxis_vel_soft_cap;
 
 	/*
 	* experimental
@@ -121,143 +103,125 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float YZAxis_decoupled_offset;
 
-	/* Factor of how large the minimum speed is for speed in the YZ axis. As this parameter increases, the minimum speed allowed before fully stopping will be larger
+	/* DRAG: Point at which the pawn will start to be affected by drag with linear with respect to movement along the relative YZ plane.
 	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
+	The smaller this number, the earlier linear drag scaling will take affect. Keep in mind that drag will reduce the actual acceleration of the pawn. 
+	If looking to adjust maximum speed - try to adjust thrust (or mass) instead. */
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
+	float YZaxis_vel_soft_cap;
+
+
+	/* Factor of how large the minimum speed is for speed in the YZ axis. As this parameter increases, the minimum speed allowed before fully stopping will be larger.
+	Prevents the pawn from gliding around indefinitely at low speeds.*/
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float YZaxis_drag_min_soft_cap;
 
 
-	/* How quickly the pawn decelerates from drag and partially affects how quickly it accelerates to higher speeds
-	Less deceleration as this parameter increases
+
+
+	/* DRAG: Indirectly affects pawn maximum speed and acceleration in the forward direction. Also plays a role in decelerating the pawn.
+	* Drag is increased as this parameter gets *smaller*.
 	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
+	Consider adjusting thrust (or mass) in the forward direction - if only concerned about maximum speed and acceleration.*/
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float forward_drag_intensity;
 
-	/* Point at which the pawn will start to be affected by linear scaling drag
-	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
-	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
-	float forward_vel_soft_cap;
-
 	/*
 	* experimental
-	* soft cap offset when pawn is in decoupled flight 
+	* soft cap offset when pawn is in decoupled flight
 	*/
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float forward_decoupled_offset;
 
-	/* Strength of the softcap gets stronger as this parameter increases. Reducing maximum speed.
-	Use for microadjustments to the curve of the drag.
+	/* DRAG: Point at which the pawn will start to be affected by drag with linear with respect to movement in the relative forward direction.
 	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
+	The smaller this number, the earlier linear drag scaling will take affect. Keep in mind that drag will reduce the actual acceleration of the pawn. So the sooner this soft cap is reached, the quicker that effect will take place.*/
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
+	float forward_vel_soft_cap;
+
+	/* Curve of the drag softcap gets steeper as this parameter increases. Reducing maximum speed.
+	**very sensitive setting** */
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float forward_soft_cap_strength;
 
 
-	/* How quickly the pawn decelerates from drag and partially affects how quickly it accelerates to higher speeds
-	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
+
+
+	/* DRAG: Affects the strength of how quickly the pawn decelerates while moving in the backward direction. 
+	* Drag is increased as this parameter gets *smaller*.
+
+	Assuming there is no way to add thrust in the backward direction. This parameter is the main way to control the upper limit of backwards velocity. .*/
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float backward_drag_intensity;
 
-	/* this parameter * backward_drag_intensity = Point at which the pawn will start to be affected constant factor drag effect
-	This drag is applied from velocity levels between this point and 0. Since this is backward velocity though it will specifically be in the -x => -0 
-	
-	
-	Consider adjusting Drag if we really need to increase deceleration, but be wary that it affects acceleration and maximum speeds as well - so thrust may need to change to compensate. */
+	/* A flat value of deceleration to apply as drag to the pawn when moving backwards at slower speeds. 
+	Unlike the parameter backward_drag_intensity, this is unaffected by momentary velocity. Therefore this value becomes relevant whenever the resulting drag calculated using momentary velocity is smaller than the specified value. */
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float backward_drag_min_soft_cap;
 
-	/* Strength of the soft cap gets stronger as this parameter approaches zero. Reducing maximum speed*/
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float backward_soft_cap_strength;
 
 
-	/* The smaller this parameter the quicker the roll momentum drops off */
+	/* The smaller this parameter the quicker the roll momentum drops off, creating a snappier roll feeling. In otherwords simulating how strongly drag slows down the velocity of a roll. */
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	double roll_momentum_dropoff;
 
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float vertical_momentum_dropoff;
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float vertical_momentum_dropoff_threshold;
-
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float vertical_momentum_dropoff_min_strength;
-
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float horizontal_momentum_dropoff;
-
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float horizontal_momentum_dropoff_threshold;
-
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float horizontal_momentum_dropoff_min_strength;
-
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float sideways_momentum_dropoff;
-
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float sideways_momentum_dropoff_threshold;
-
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float sideways_momentum_dropoff_min_strength;
-
-
-
-	//Afterburner stuff
+	//Strength of afterburner when initially fired (impulse) when not on cooldown.
 	UPROPERTY(EditAnywhere, Category= "Movement|Afterburner")
 	float initial_boost_strength;
 
+	//Cooldown between when initial boosts can take affect
 	UPROPERTY(EditAnywhere, Category = "Movement|Afterburner")
 	float initial_boost_cooldown;
 
+	//Remaining time before next initial_boost impulse can be fired again
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Afterburner")
 	float initial_boost_cd_counter;
 
+	//Steady afterburner power that fires independently of initial boost (no cooldown). 
 	UPROPERTY(EditAnywhere, Category = "Movement|Afterburner")
 	float boost_strength;
 
-	/*
-	* Increases max speed threshold when boosting
-	*/
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
-	float max_speed_inc;
 
 
-	//Flightmode stuff
+	//Booster Pointing Direction Stuff stuff
 	/*
-	* Determines speed ratio threshold of forward and vertical velocity that must be achieved to change flight modes 
+	* Use speed ratio threshold of forward to vertical velocity to determine flight mode
 	*/
-	UPROPERTY(EditAnywhere, Category="Movement|Flight Mode")
+	UPROPERTY(EditAnywhere, Category="Movement|BoosterMode")
 	bool b_use_ratio_for_boostermode;
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Flight Mode")
+	/*
+	* Determines speed ratio threshold of forward to vertical velocity that must be achieved to change flight modes
+	*/
+	UPROPERTY(EditAnywhere, Category = "Movement|BoosterMode")
 	float jet_hover_ratio_threshold;
 
 	/*
 	* if b_determine_flight_mode_from_ratio = false
 	* use flat velocity to determine flight mode instead of a ratio
 	*/
-	UPROPERTY(EditAnywhere, Category = "Movement|Flight Mode")
+	UPROPERTY(EditAnywhere, Category = "Movement|BoosterMode")
 	float jet_speed_threshold;
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Flight Mode")
+	//Amount of artificial turning force to apply to booster based on assigned BoosterMode
+	UPROPERTY(EditAnywhere, Category = "Movement|BoosterMode")
 	float constraint_velocity_target;
 
-protected:
 
+
+protected:
+	//Use this parameter to specify how much pitch should be input every frame (in degrees)
 	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
 	float pitch_input;
 
+	//Use this parameter to specify how much roll should be input every frame (in degrees)
 	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
 	float roll_input;
 
-	int8 digital_roll_input; //value from -1 to 1 denoting the direction of roll (uses max roll speed to apply)
+	//value from -1 to 1 denoting the direction of roll (uses max roll speed to apply)
+	int8 digital_roll_input; 
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -279,6 +243,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) //may need to replicate this object so that the server can know it's position accurately when it's doing network stuff
 	UPrimitiveComponent *SimulatedBooster;
 
+
 	//Booster Attachment Point
 		/*
 		* Physics constraint that attaches SimulatedBooster to MainBody. Adjust this constraint to adjust SimulatedBooster's behaviour 
@@ -287,12 +252,13 @@ protected:
 	UPhysicsConstraintComponent *BoosterHingeAttachement;
 
 
+
 //MAKE MOVEMENTS
 	//Translation
 	/*
 	* Inputs contributes to the current "MovementInput" Vector 
-	* 
 	*/
+
 	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
 	void ApplyForwardThrust();
 
@@ -319,20 +285,22 @@ protected:
 	//UFUNCTION(BlueprintCallable, Category = "Movement|Advanced")
 	void SimCoupledFlight(FVector localized_velocity_linger, float DeltaTime);
 
+	/*
+	* Experimental:
+	*	A flag denoting unique pawn handling. When disabled, the pawn will be considered in decoupled flight, which has faster acceleration but worse handling. 
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Advanced")
 	bool bcoupled_flight_enabled;
 
+	/*
+	* Experimental:
+	*	Whether to treat thrust as Force to be applied against the Pawn as a physics object with mass, or to treat thrust as Adding velocity/mass over time. Both theoretically result in the same behavior. So mostly for debugging.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Advanced")
 	bool bthrust_as_velocity;
 
 
 	//Rotation
-	/*
-	* Since there is no "AddMovementInput" function for rotation, will have to do with manual rotation
-	* aside from yaw, these should be called within tick function.
-	* To assign pitch or roll, look at setting pitch_input and roll_input attributes
-	*/
-
 	/*
 	* Gets pitch amount to apply on tick
 	* Should be called within tick function.
@@ -340,7 +308,7 @@ protected:
 	*/
 	float HandlePitch(float delta_time);
 
-	//apply yaw
+	//Yaw can only be applied as a flat amount of degrees/time currently. 
 	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
 	void ApplyYaw(bool bIsNegative);
 
@@ -352,6 +320,7 @@ protected:
 	*/
 	double HandleRoll(float delta_time);
 
+	//Call this node if wanting to digitally handle roll inputs. Will always send the maximum amount of roll degrees to the pawn. 
 	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
 	void ApplyMaxRoll(bool roll_right);
 
@@ -361,26 +330,14 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Movement|Afterburner")
 	void ApplyBoost();
 
+	//apply initial boost as impulse. Only applies when the internal cooldown is <= 0.
 	UFUNCTION(BlueprintCallable, Category = "Movement|Afterburner")
 	bool InitialBoost();
 
 
-//HANDLE MOVEMENT EVERY FRAME
-	//Deprecated or not in use or just trash code 
-	float VelocityFromEXPOFastDrag(float desired_vel_increase, float lingering_vel, float momentum_dropoff_strength, float delta_time, float accel_scaling);
-	/*
-	* Uses logarithmic function c/logx to calculate change in velocity for next frame
-	*/
-	float VelocityFromLOGSlowDrag(float desired_vel_increase, float lingering_vel, float momentum_dropoff_strength, float delta_time, float accel_scaling);
-	float VelocityFromSoftCapDrag(float desired_vel_increase, float lingering_vel, float soft_cap_threshold, float delta_time);
-	float GetXVelAfterDrag(float desired_x_velocity, float lingering_x_velocity, float delta_time);
-	float GetXDrag(float desired_x_velocity, float lingering_x_velocity, float delta_time);
-	float GetYVelAfterDrag(float desired_y_velocity, float lingering_y_velocity, float delta_time);
-	float GetZVelAfterDrag(float desired_z_velocity, float lingering_z_velocity, float delta_time);
-	//
 
+//AFTER MOVEMENT INPUTS, POST PROCESS MOVEMNENT EVERY FRAME 
 	//Translation
-
 	//Generic Drag functions in charge of getting the amount of drag to apply counter to the lingering_velocity 
 	/*
 	* linear functions use ratio (x/c) onto lingering_velocity to find out how much drag to apply. 
@@ -397,12 +354,17 @@ protected:
 	float DragFromLOG(float lingering_velocity, float delta_time, float drag_scaling);
 
 
-	/*Specific Axis Drag function.Currently ticked every frame and applied against velocity in that tick*/
+	/*Specific Axis Drag function. Currently ticked every frame and applied against velocity in that tick*/
 	FVector GetXDrag(float lingering_x_velocity, float delta_time);
 
 	/*Specific Axis Drag function. Currently ticked every frame and applied against velocity in that tick*/
 	FVector GetYZDrag(FVector lingering_yz_velocity, float delta_time);
 	
+	/*
+	* Checks if pawn is moving at speeds close to zero in all axis and will set the speed to actually zero if true
+	* Useful when velocity is small and a sort of bouncing between positive and negative vales occur due to incoming drag velocity overcorrecting. 
+	*/
+	void ZeroVelocityCorrection(FVector lingering_velocity, float zero_speed_threshold);
 	
 	//Rotation
 
@@ -415,16 +377,69 @@ protected:
 	*/
 	void ResolveBoosterMode(FVector current_local_velocity);
 
+
+
 //NETWORKING AND SERVER REPLICATION
+
 	//Translation & Rotation
 	/*
 	* use to pass pawn's next world position and rotation to server after having accounted for all local inputs
 	*/
 	UFUNCTION(Server, Unreliable)
-	void PassTransformToServer(FTransform final_world_transform);
+	void PassTransformToServer(FVector2D world_facing_pitch_yaw, float relative_roll_amount);
 
+	/*
+	* use to pass pawn's velocity to the server as owner of the pawn
+	*/
 	UFUNCTION(Server, Unreliable)
 	void PassVelToServer(FVector final_world_velocity);
+
+	// Overriden to utilize custom network smoothing upon position update (simulated proxies only)
+	void PostNetReceiveLocationAndRotation() override;
+
+	/*
+	* Should only be executed on simulated clients
+	* Handles the job of moving the pawn on other players screens 
+	*/
+	void HandleMovementOnSimulatedClient(float delta_time);
+
+
+	UPROPERTY(ReplicatedUsing = OnRep_Sim_newest_pitch_yaw_goal, BlueprintReadOnly, Category = "Movement|Simulated")
+	FVector2D SIM_newest_pitch_yaw_goal;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SIM_newest_roll_goal, BlueprintReadOnly, Category = "Movement|Simulated")
+	float SIM_newest_roll_goal;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SIM_last_rotator_input, BlueprintReadOnly, Category = "Movement|Simulated")
+	FRotator SIM_last_rotator_input;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SIM_newest_position_goal, BlueprintReadOnly, Category = "Movement|Simulated")
+	FVector SIM_newest_position_goal;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SIM_last_velocity_input, BlueprintReadOnly, Category = "Movement|Simulated")
+	FVector SIM_last_velocity_input;
+
+
+	/*
+	* OnRep functions must be manually called on server after the value is changed (only for C++) in order for replication to register.
+	*/
+
+	UFUNCTION()
+	void OnRep_SIM_newest_pitch_yaw_goal();
+
+	UFUNCTION()
+	void OnRep_SIM_newest_roll_goal();
+
+	UFUNCTION()
+	void OnRep_SIM_last_rotator_input();
+
+	UFUNCTION()
+	void OnRep_Sim_newest_position_goal();
+
+	UFUNCTION()
+	void OnRep_SIM_last_velocity_input();
+
+
 
 public:	
 	// Called every frame
@@ -433,6 +448,5 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	// Overriden to utilize custom network smoothing upon position update (simulated proxies only)
-	void PostNetReceiveLocationAndRotation() override;
+
 };
