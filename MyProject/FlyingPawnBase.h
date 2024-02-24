@@ -386,58 +386,61 @@ protected:
 	* use to pass pawn's next world position and rotation to server after having accounted for all local inputs
 	*/
 	UFUNCTION(Server, Unreliable)
-	void PassTransformToServer(FVector2D world_facing_pitch_yaw, float relative_roll_amount);
+	void PassRotationToServer(FRotator rotational_velocity, FRotator newest_rotational_goal);
 
 	/*
 	* use to pass pawn's velocity to the server as owner of the pawn
 	*/
 	UFUNCTION(Server, Unreliable)
-	void PassVelToServer(FVector final_world_velocity);
+	void PassTranslationToServer(FVector world_velocity, FVector reported_world_location);
 
 	// Overriden to utilize custom network smoothing upon position update (simulated proxies only)
 	void PostNetReceiveLocationAndRotation() override;
 
 	/*
-	* Should only be executed on simulated clients
+	* Should only be executed on simulated clients. Should be called every tick
 	* Handles the job of moving the pawn on other players screens 
 	*/
 	void HandleMovementOnSimulatedClient(float delta_time);
 
 
-	UPROPERTY(ReplicatedUsing = OnRep_Sim_newest_pitch_yaw_goal, BlueprintReadOnly, Category = "Movement|Simulated")
-	FVector2D SIM_newest_pitch_yaw_goal;
+	UPROPERTY(ReplicatedUsing = OnRep_SIM_last_rotational_goal, BlueprintReadOnly, Category = "Movement|Simulated")
+	FRotator SIM_last_rotational_goal;
+	float SIM_rotational_goal_interpolator_alpha; //Use this variable to keep track of how much time has passed since we started interpolating towards rotational goal. This value can exceed 1.0f which means >100% interpolation.
 
-	UPROPERTY(ReplicatedUsing = OnRep_SIM_newest_roll_goal, BlueprintReadOnly, Category = "Movement|Simulated")
-	float SIM_newest_roll_goal;
+	//raw inputs from autonomous proxy passed over to simulated proxy. Before scaled by time or any post process effects
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Movement|Simulated")
+	FRotator SIM_last_rotational_velocity; 
+	FTimerHandle SIM_begin_decay_rotator_handle; //when this timer has finished, bSIM_decay_input_rotator will be set to true (by calling EnableDecayRotation()), can invalidate early to make sure this doesn't happen. 
 
-	UPROPERTY(ReplicatedUsing = OnRep_SIM_last_rotator_input, BlueprintReadOnly, Category = "Movement|Simulated")
-	FRotator SIM_last_rotator_input;
 
-	UPROPERTY(ReplicatedUsing = OnRep_SIM_newest_position_goal, BlueprintReadOnly, Category = "Movement|Simulated")
-	FVector SIM_newest_position_goal;
+	UPROPERTY(ReplicatedUsing = OnRep_SIM_last_position_goal, BlueprintReadOnly, Category = "Movement|Simulated")
+	FVector SIM_last_position_goal;
 
 	UPROPERTY(ReplicatedUsing = OnRep_SIM_last_velocity_input, BlueprintReadOnly, Category = "Movement|Simulated")
 	FVector SIM_last_velocity_input;
+	bool bSIM_decay_input_velocity; //When true, SIM_last_velocity_input will decay slightly over time
+	void SIMEnableDecayVelocity();
+	FTimerHandle SIM_begin_decay_velocity_handle; //when this timer has finished, bSIM_decay_input_velocity will be set to true (by calling EnableDecayVelocity()), can invalidate early to make sure this doesnt happen.
 
 
 	/*
 	* OnRep functions must be manually called on server after the value is changed (only for C++) in order for replication to register.
 	*/
 
-	UFUNCTION()
-	void OnRep_SIM_newest_pitch_yaw_goal();
 
 	UFUNCTION()
-	void OnRep_SIM_newest_roll_goal();
+	void OnRep_SIM_last_rotational_goal();
+
 
 	UFUNCTION()
-	void OnRep_SIM_last_rotator_input();
-
-	UFUNCTION()
-	void OnRep_Sim_newest_position_goal();
+	void OnRep_SIM_last_position_goal();
 
 	UFUNCTION()
 	void OnRep_SIM_last_velocity_input();
+	
+
+
 
 
 
