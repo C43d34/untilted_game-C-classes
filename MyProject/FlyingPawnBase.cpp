@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 
+
 // Sets default values
 AFlyingPawnBase::AFlyingPawnBase()
 {
@@ -109,6 +110,17 @@ AFlyingPawnBase::AFlyingPawnBase()
 	this->BoosterHingeAttachement->SetConstrainedComponents(this->SimulatedBooster, this->SimulatedBooster->GetFName(), this->MainBody, this->MainBody->GetFName());
 	BoosterHingeAttachement->ComponentName2 = FConstrainComponentPropName(MainBody->GetFName());
 
+
+//Interpolation Component To Network Replication doesn't look ass
+	this->SIM_movement_handler = CreateDefaultSubobject<USimulatedMovementInterpolator>(TEXT("SimulatedMovementInterpolator"));
+	this->AddOwnedComponent(this->SIM_movement_handler);
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		this->SIM_movement_handler->owners_physics_body_name = this->MainBody->GetFName();
+		this->SIM_movement_handler->owners_physics_body = Cast<UPrimitiveComponent>(this->MainBody);
+		this->SIM_movement_handler->SetNetAddressable();
+		this->SIM_movement_handler->SetIsReplicated(true);
+	}
 }
 
 
@@ -156,8 +168,10 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 		//GEngine->GetNetMode(GWorld)
 		//));
 
+	GEngine->AddOnScreenDebugMessage(121111324, 100, FColor::Red, FString::Printf(TEXT("asdfhjk ufkc u")));
 	
 	//may want to check if GEngine and GWorld are not null pointers when doing this but anyway.
+	//run standard code if standalone or an autonomous proxy in a server mode world
 	if (Controller && (Controller->GetLocalRole() == ROLE_AutonomousProxy || GEngine->GetNetMode(GWorld) == NM_ListenServer || GEngine->GetNetMode(GWorld) == NM_Standalone))
 	{
 		cur_time = cur_time + DeltaTime;
@@ -183,6 +197,7 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 		this->AddActorLocalRotation(this->incoming_input_rotation);
 	
 		//velocity to pass over to simulated proxies (we don't actually use this variable inside autonmous proxy
+		FRotator latest_rotational_velocity = this->incoming_input_rotation * (1 / DeltaTime); //unscale by delta time to get value as time independent velocity
 		this->SIM_last_rotational_velocity = this->incoming_input_rotation * (1/DeltaTime); //unscale by delta time to get value as time independent velocity
 
 		GEngine->AddOnScreenDebugMessage(3377, 1, FColor::Green, FString::Printf(TEXT("3377 our rotational velocity % s"), *this->SIM_last_rotational_velocity.ToString()));
@@ -253,12 +268,18 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 		GEngine->AddOnScreenDebugMessage(3, 1, FColor::Green, FString::Printf(TEXT("3 Our Pawn %s, phsycsi %s"), *this->GetActorLocation().ToString(), MainBody->IsSimulatingPhysics() ? TEXT("True") : TEXT("false")));
 		GEngine->AddOnScreenDebugMessage(333, 1, FColor::Green, FString::Printf(TEXT("333 Our Pawn's rotation %s"), *this->GetActorRotation().ToString()));
 	
-		this->PassRotationToServer(this->SIM_last_rotational_velocity, this->GetActorRotation());
-		this->PassTranslationToServer(MainBody->GetPhysicsLinearVelocity(), this->GetActorLocation());
+		//only do if in serrver mode fr
+		if ((GEngine->GetNetMode(GWorld) == NM_Client))
+		{
+			this->SIM_movement_handler->PassRotationToServer(latest_rotational_velocity, this->GetActorRotation());
+			this->SIM_movement_handler->PassTranslationToServer(MainBody->GetPhysicsLinearVelocity(), this->GetActorLocation());
+		}
 	}
-	else if (GetLocalRole() == ROLE_SimulatedProxy)
+
+	else if (this->GetLocalRole() == ROLE_SimulatedProxy)
 	{
-		HandleMovementOnSimulatedClient(DeltaTime);
+		this->SIM_movement_handler->HandleMovementOnSimulatedClient(DeltaTime);
+
 		GEngine->AddOnScreenDebugMessage(4, 1, FColor::Emerald, FString::Printf(TEXT("4 Their Pawn %s, physics mdoe %s"), *this->GetActorLocation().ToString(), MainBody->IsSimulatingPhysics()? TEXT("True") : TEXT("false")));
 		GEngine->AddOnScreenDebugMessage(44, 1, FColor::Emerald, FString::Printf(TEXT("44 Their Pawn's Rotation %s"), *this->GetActorRotation().ToString()));
 	}
@@ -336,7 +357,6 @@ void AFlyingPawnBase::PassTranslationToServer_Implementation(FVector world_veloc
 
 	this->SIM_last_velocity_input = world_velocity;
 	OnRep_SIM_last_velocity_input();
-
 }
 
 
@@ -382,7 +402,6 @@ void AFlyingPawnBase::HandleMovementOnSimulatedClient(float delta_time)
 			SIM_interpolated_rotation_quat = FMath::Lerp(this->GetActorRotation().Quaternion(), this->SIM_last_rotational_goal.Quaternion(), this->SIM_rotational_goal_interpolator_alpha);
 			this->SetActorRotation(SIM_interpolated_rotation_quat);
 		}
-
 	}
 
 	//reported rotational velocity is non-zero, we are free to interpolate (predict future) rotational position beyond last recieved goal 
@@ -393,8 +412,6 @@ void AFlyingPawnBase::HandleMovementOnSimulatedClient(float delta_time)
 		SIM_interpolated_rotation_quat = FMath::Lerp(this->GetActorRotation().Quaternion(), this->SIM_last_rotational_goal.Quaternion(), this->SIM_rotational_goal_interpolator_alpha);
 		this->SetActorRotation(SIM_interpolated_rotation_quat);
 	}
-
-
 }
 
 

@@ -7,7 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
-
+#include "SimulatedMovementInterpolator.h"
 
 #include "FlyingPawnBase.generated.h"
 
@@ -380,6 +380,7 @@ protected:
 
 
 //NETWORKING AND SERVER REPLICATION
+	USimulatedMovementInterpolator *SIM_movement_handler;
 
 	//Translation & Rotation
 	/*
