@@ -5,12 +5,17 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/EngineTypes.h"
+#include "GameFramework/FloatingPawnMovement.h"
+
+
 #include "SimulatedMovementInterpolator.generated.h"
 
 /*
 * Interpolates movement for pawns controlled by simulated proxies.
-* Requires a reference to the owning actor's movement component before construction, and assumes it has simualate physics enabled. 
+* Requires a reference to the owning actor's movement component before construction, either a physics based component or an actor component like Floating Pawn Movement. 
 * If simulate physics is not enabled (atleast on simulated proxy version of actor), nothing will happen. 
+* 
+* Rotational changes are expressed on the root of the actor
 */
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class MYPROJECT_API USimulatedMovementInterpolator : public UActorComponent
@@ -21,14 +26,28 @@ public:
 	//name of component that will be used to push physics on the simulated version of this actor
 	UPROPERTY(EditAnywhere, Category="Movement|Simulated")
 	FName owners_physics_body_name;
+	UPROPERTY(EditAnywhere, Category = "Movement|Simulated")
+	FName movement_component_name;
+
+	//set true if this pawn's translational position is controlled by a movement component. 
+	UPROPERTY(Replicated, BlueprintReadOnly, EditAnywhere, Category = "Movement|Simulated")
+	bool use_floatingpawnmovement_component;
+
 	//reference to component that is used to push physics on the simulated version of this actor
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	UPrimitiveComponent* owners_physics_body;
+	UPROPERTY(Replicated, BlueprintReadOnly)
+	UMovementComponent* owners_movement_component;
+
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite)
+	float testval;
 
 	//default constructors
 	USimulatedMovementInterpolator();
 
 protected:
 	//direct reference to the actor to interpolate movement with on simulated versions. 
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	AActor* actor_to_simulate_for;
 
 	// Called when the game starts

@@ -15,7 +15,20 @@ USimulatedMovementInterpolator::USimulatedMovementInterpolator()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 	owners_physics_body_name = TEXT("Root");
-	SetIsReplicated(true);
+	owners_physics_body = nullptr;
+	//SetIsReplicated(true);
+	use_floatingpawnmovement_component = false;
+	movement_component_name = TEXT("FloatingPawnMovement");
+
+	bSIM_decay_input_velocity = false;
+	SIM_last_velocity_input = FVector(0);
+	SIM_last_position_goal = FVector(0);
+
+	SIM_rotational_goal_interpolator_alpha = 0;
+	SIM_last_rotational_velocity = FRotator(0);
+	SIM_last_rotational_goal = FRotator(0);
+
+	testval = 10;
 }
 
 
@@ -26,12 +39,15 @@ void USimulatedMovementInterpolator::BeginPlay()
 	Super::BeginPlay();
 
 	// ...
-	this->Activate();
 	this->actor_to_simulate_for = this->GetOwner();
 
 	//owner hasn't already set a reference to the physics body so we need to look for it now. 
 	if (this->owners_physics_body == nullptr)
 	{
+		if (this->use_floatingpawnmovement_component)
+		{
+			this->owners_movement_component = Cast<UMovementComponent>(this->actor_to_simulate_for->GetDefaultSubobjectByName(this->movement_component_name));
+		}
 		this->owners_physics_body = Cast<UPrimitiveComponent>(this->actor_to_simulate_for->GetDefaultSubobjectByName(this->owners_physics_body_name));
 	}
 
@@ -90,8 +106,12 @@ void USimulatedMovementInterpolator::PassTranslationToServer_Implementation(FVec
 void USimulatedMovementInterpolator::HandleMovementOnSimulatedClient(float delta_time)
 {
 	////Simulate Translation
-	this->owners_physics_body->SetPhysicsLinearVelocity(this->SIM_last_velocity_input);
-	
+	if (this->use_floatingpawnmovement_component) {
+		this->owners_movement_component->Velocity = this->SIM_last_velocity_input;
+	}
+	else {
+		this->owners_physics_body->SetPhysicsLinearVelocity(this->SIM_last_velocity_input);
+	}
 
 	//try to ease off velocity a little bit so we dont end up overshooting.
 	if (this->bSIM_decay_input_velocity)
@@ -152,6 +172,14 @@ void USimulatedMovementInterpolator::GetLifetimeReplicatedProps(TArray<FLifetime
 
 	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_position_goal, COND_SimulatedOnly);
 	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_velocity_input, COND_SimulatedOnly);
+
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, actor_to_simulate_for, COND_InitialOnly);
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, owners_physics_body, COND_InitialOnly);
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, owners_movement_component, COND_InitialOnly);
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, use_floatingpawnmovement_component, COND_InitialOnly);
+
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, testval, COND_SimulatedOnly);
+	
 
 }
 
