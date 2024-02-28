@@ -17,8 +17,6 @@ USimulatedMovementInterpolator::USimulatedMovementInterpolator()
 	owners_physics_body_name = TEXT("Root");
 	owners_physics_body = nullptr;
 	//SetIsReplicated(true);
-	use_floatingpawnmovement_component = false;
-	movement_component_name = TEXT("FloatingPawnMovement");
 
 	bSIM_decay_input_velocity = false;
 	SIM_last_velocity_input = FVector(0);
@@ -27,8 +25,6 @@ USimulatedMovementInterpolator::USimulatedMovementInterpolator()
 	SIM_rotational_goal_interpolator_alpha = 0;
 	SIM_last_rotational_velocity = FRotator(0);
 	SIM_last_rotational_goal = FRotator(0);
-
-	testval = 10;
 }
 
 
@@ -44,10 +40,6 @@ void USimulatedMovementInterpolator::BeginPlay()
 	//owner hasn't already set a reference to the physics body so we need to look for it now. 
 	if (this->owners_physics_body == nullptr)
 	{
-		if (this->use_floatingpawnmovement_component)
-		{
-			this->owners_movement_component = Cast<UMovementComponent>(this->actor_to_simulate_for->GetDefaultSubobjectByName(this->movement_component_name));
-		}
 		this->owners_physics_body = Cast<UPrimitiveComponent>(this->actor_to_simulate_for->GetDefaultSubobjectByName(this->owners_physics_body_name));
 	}
 
@@ -103,23 +95,22 @@ void USimulatedMovementInterpolator::PassTranslationToServer_Implementation(FVec
 
 
 
-void USimulatedMovementInterpolator::HandleMovementOnSimulatedClient(float delta_time)
+void USimulatedMovementInterpolator::HandleSimulatingPosition(float delta_time)
 {
-	////Simulate Translation
-	if (this->use_floatingpawnmovement_component) {
-		this->owners_movement_component->Velocity = this->SIM_last_velocity_input;
-	}
-	else {
-		this->owners_physics_body->SetPhysicsLinearVelocity(this->SIM_last_velocity_input);
-	}
+	this->owners_physics_body->SetPhysicsLinearVelocity(this->SIM_last_velocity_input);
 
 	//try to ease off velocity a little bit so we dont end up overshooting.
 	if (this->bSIM_decay_input_velocity)
-	{	//this is not frame independent btw 
+	{	//this is not frame independent btw (issue with long frametimes like on server which is 30tick rate)
 		this->SIM_last_velocity_input = this->SIM_last_velocity_input *
 			(this->SIM_last_velocity_input.Normalize() - (this->SIM_last_velocity_input.Normalize() * delta_time));
 	}
+}
 
+
+
+void USimulatedMovementInterpolator::HandleSimualtingRotation(float delta_time)
+{
 	//Simulate Rotation
 	FQuat SIM_interpolated_rotation_quat;
 
@@ -167,20 +158,20 @@ void USimulatedMovementInterpolator::GetLifetimeReplicatedProps(TArray<FLifetime
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	//Variables to share only with simulated actors
-	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_rotational_velocity, COND_SimulatedOnly);
-	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_rotational_goal, COND_SimulatedOnly);
+	//DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_rotational_velocity, COND_SimulatedOnly);
+	//DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_rotational_goal, COND_SimulatedOnly);
 
-	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_position_goal, COND_SimulatedOnly);
-	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_velocity_input, COND_SimulatedOnly);
+	//DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_position_goal, COND_SimulatedOnly);
+	//DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_velocity_input, COND_SimulatedOnly);
+
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_rotational_velocity, COND_SkipOwner); 
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_rotational_goal, COND_SkipOwner);
+
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_position_goal, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, SIM_last_velocity_input, COND_SkipOwner);
 
 	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, actor_to_simulate_for, COND_InitialOnly);
 	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, owners_physics_body, COND_InitialOnly);
-	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, owners_movement_component, COND_InitialOnly);
-	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, use_floatingpawnmovement_component, COND_InitialOnly);
-
-	DOREPLIFETIME_CONDITION(USimulatedMovementInterpolator, testval, COND_SimulatedOnly);
-	
-
 }
 
 

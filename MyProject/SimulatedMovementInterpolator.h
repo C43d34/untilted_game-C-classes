@@ -12,7 +12,7 @@
 
 /*
 * Interpolates movement for pawns controlled by simulated proxies.
-* Requires a reference to the owning actor's movement component before construction, either a physics based component or an actor component like Floating Pawn Movement. 
+* Requires a reference to the owning actor's movement component before construction (must be simulating physics on the simulated proxy side in order for interpolation to take effect. 
 * If simulate physics is not enabled (atleast on simulated proxy version of actor), nothing will happen. 
 * 
 * Rotational changes are expressed on the root of the actor
@@ -26,21 +26,10 @@ public:
 	//name of component that will be used to push physics on the simulated version of this actor
 	UPROPERTY(EditAnywhere, Category="Movement|Simulated")
 	FName owners_physics_body_name;
-	UPROPERTY(EditAnywhere, Category = "Movement|Simulated")
-	FName movement_component_name;
-
-	//set true if this pawn's translational position is controlled by a movement component. 
-	UPROPERTY(Replicated, BlueprintReadOnly, EditAnywhere, Category = "Movement|Simulated")
-	bool use_floatingpawnmovement_component;
 
 	//reference to component that is used to push physics on the simulated version of this actor
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	UPrimitiveComponent* owners_physics_body;
-	UPROPERTY(Replicated, BlueprintReadOnly)
-	UMovementComponent* owners_movement_component;
-
-	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite)
-	float testval;
 
 	//default constructors
 	USimulatedMovementInterpolator();
@@ -78,9 +67,21 @@ public:
 	/*
 	* Should only be executed on simulated clients. Should be called every tick
 	* Handles the job of moving the pawn on other players screens
+	* 
+	* (can also be called on the server if wanting to handle replication to server that way, but if smoothness is not important, use a different method)
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movement|Simulated")
-	void HandleMovementOnSimulatedClient(float delta_time);
+	void HandleSimulatingPosition(float delta_time);
+
+
+	/*
+	* Should only be executed on simulated clients. Should be called every tick
+	* Handles the job of rotating the pawn on other players screens
+	*
+	* (can also be called on the server if wanting to handle replication to server that way, but if smoothness is not important, use a different method)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movement|Simulated")
+	void HandleSimualtingRotation(float delta_time);
 
 
 	UPROPERTY(ReplicatedUsing = OnRep_SIM_last_rotational_goal, BlueprintReadOnly, Category = "Movement|Simulated")

@@ -173,7 +173,6 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 		//GEngine->GetNetMode(GWorld)
 		//));
 
-	GEngine->AddOnScreenDebugMessage(121111324, 100, FColor::Red, FString::Printf(TEXT("asdfhjk ufkc u")));
 	
 	//may want to check if GEngine and GWorld are not null pointers when doing this but anyway.
 	//run standard code if standalone or an autonomous proxy in a server mode world
@@ -281,10 +280,18 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 
 	else if (this->GetLocalRole() == ROLE_SimulatedProxy)
 	{
-		this->SIM_movement_handler->HandleMovementOnSimulatedClient(DeltaTime);
+		this->SIM_movement_handler->HandleSimulatingPosition(DeltaTime);
+		this->SIM_movement_handler->HandleSimualtingRotation(DeltaTime);
 
 		GEngine->AddOnScreenDebugMessage(4, 1, FColor::Emerald, FString::Printf(TEXT("4 Their Pawn %s, physics mdoe %s"), *this->GetActorLocation().ToString(), MainBody->IsSimulatingPhysics()? TEXT("True") : TEXT("false")));
 		GEngine->AddOnScreenDebugMessage(44, 1, FColor::Emerald, FString::Printf(TEXT("44 Their Pawn's Rotation %s"), *this->GetActorRotation().ToString()));
+	}
+
+	else if (this->GetLocalRole() == ROLE_Authority)
+	{
+		//simulate movement on server as well so server entities can interact with the pawn (such as AI)
+		this->SIM_movement_handler->HandleSimulatingPosition(DeltaTime);
+		this->SIM_movement_handler->HandleSimualtingRotation(DeltaTime);
 	}
 }
 
