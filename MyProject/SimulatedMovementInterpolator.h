@@ -112,13 +112,14 @@ public:
 	UFUNCTION()
 	void OnRep_SIM_last_rotational_goal();
 
-
 	UFUNCTION()
 	void OnRep_SIM_last_position_goal();
 
 	UFUNCTION()
-	void OnRep_SIM_last_velocity_input();
+	void OnRep_SIM_last_rotational_velocity();
 
+	UFUNCTION()
+	void OnRep_SIM_last_velocity_input();
 
 
 };

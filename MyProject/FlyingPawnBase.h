@@ -8,11 +8,17 @@
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "SimulatedMovementInterpolator.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include <GameplayEffectTypes.h>
+#include <GASAttributes_FlyingPawn.h>
+#include <GASAttributes_Main.h>
+#include <ASC_Custom.h>
 
 #include "FlyingPawnBase.generated.h"
 
 UCLASS()
-class MYPROJECT_API AFlyingPawnBase : public APawn
+class MYPROJECT_API AFlyingPawnBase : public APawn, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
@@ -27,8 +33,20 @@ private:
 	//Used as accumulator to make rolling smooth out when slowing down
 	float lingering_roll_velocity;
 
+	//Used as accumulator to make yaw pick up speed if holding 1 direction long enough
+	float lingering_yaw_velocity; 
+
 	//Accumulated rotator inputs every frame. Should be reset at the end of every tick. 
 	FRotator incoming_input_rotation;
+
+	virtual void PossessedBy(AController* pawn_controller) override;
+	
+	virtual void OnRep_PlayerState() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 public:
 	// Sets default values for this pawn's properties
 	AFlyingPawnBase();
@@ -43,7 +61,7 @@ public:
 	float roll_sensitivity;
 
 	//Sensitivity and input strength Settings
-	UPROPERTY(EditAnywhere, Category = "Movement|Sensitivity", meta=(UIMin = "0", UIMax= "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Movement|Sensitivity|Deprecated", meta=(UIMin = "0", UIMax= "1.0"))
 	float yaw_sensitivity;
 
 
@@ -68,24 +86,31 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float global_acceleration_scaling;
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float upward_accel_scale;
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float forward_accel_scale;
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float backward_accel_scale;
 
-	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
 	float downward_accel_scale;
 
 	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
 	float sideways_accel_scale;
 
-	//Amount of degrees per second the pawn will yaw left or right
-	UPROPERTY(EditAnywhere, Category = "Movement")
+	UPROPERTY(EditAnywhere, Category = "Movement|Deprecated")
 	float base_yaw_amnt;
+
+	//How quickly the pawn reaches max yaw speed
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float yaw_acceleration;
+
+	//Max amount of degrees per second the pawn can yaw left or right
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float max_yaw_speed;
 
 	//Max amount of degrees the pawn can pitch per second
 	UPROPERTY(EditAnywhere, Category = "Movement")
@@ -160,6 +185,10 @@ public:
 	float backward_drag_min_soft_cap;
 
 
+	/* A flat value that dampens yaw lingering momentum when no yaw input is given. The larger this value the snappier the yaw movement will feel when slowing down (not when speeding up - see yaw acceleration) */
+	UPROPERTY(EditAnywhere, Category="Movement|Advanced")
+	double yaw_momentum_dropoff;
+
 
 	/* The smaller this parameter the quicker the roll momentum drops off, creating a snappier roll feeling. In otherwords simulating how strongly drag slows down the velocity of a roll. */
 	UPROPERTY(EditAnywhere, Category = "Movement|Advanced")
@@ -168,11 +197,11 @@ public:
 
 
 	//Strength of afterburner when initially fired (impulse) when not on cooldown.
-	UPROPERTY(EditAnywhere, Category= "Movement|Afterburner")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= "Movement|Afterburner")
 	float initial_boost_strength;
 
 	//Cooldown between when initial boosts can take affect
-	UPROPERTY(EditAnywhere, Category = "Movement|Afterburner")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Afterburner")
 	float initial_boost_cooldown;
 
 	//Remaining time before next initial_boost impulse can be fired again
@@ -180,7 +209,7 @@ public:
 	float initial_boost_cd_counter;
 
 	//Steady afterburner power that fires independently of initial boost (no cooldown). 
-	UPROPERTY(EditAnywhere, Category = "Movement|Afterburner")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Afterburner")
 	float boost_strength;
 
 
@@ -195,14 +224,14 @@ public:
 	/*
 	* Determines speed ratio threshold of forward to vertical velocity that must be achieved to change flight modes
 	*/
-	UPROPERTY(EditAnywhere, Category = "Movement|BoosterMode")
+	UPROPERTY(EditAnywhere, Category = "Movement|BoosterMode", meta = (EditCondition = "b_use_ratio_for_boostermode"))
 	float jet_hover_ratio_threshold;
 
 	/*
 	* if b_determine_flight_mode_from_ratio = false
 	* use flat velocity to determine flight mode instead of a ratio
 	*/
-	UPROPERTY(EditAnywhere, Category = "Movement|BoosterMode")
+	UPROPERTY(EditAnywhere, Category = "Movement|BoosterMode", meta = (EditCondition = "!b_use_ratio_for_boostermode"))
 	float jet_speed_threshold;
 
 	//Amount of artificial turning force to apply to booster based on assigned BoosterMode
@@ -212,16 +241,7 @@ public:
 
 
 protected:
-	//Use this parameter to specify how much pitch should be input every frame (in degrees)
-	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
-	float pitch_input;
 
-	//Use this parameter to specify how much roll should be input every frame (in degrees)
-	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
-	float roll_input;
-
-	//value from -1 to 1 denoting the direction of roll (uses max roll speed to apply)
-	int8 digital_roll_input; 
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -252,12 +272,52 @@ protected:
 	UPhysicsConstraintComponent *BoosterHingeAttachement;
 
 
+	//Ability System Component
+		/*
+		* Contains FlyingPawn attributes and encapsulates Gameplay Ability System functionality on this actor
+		*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UASC_Custom* ASC;
+
+	//List of attribute set classes that will always be included on this actor's ability system component. (Only for use in C++, can add additional attribute sets within DefaultStartingData array in editor). 
+	TArray<TSubclassOf<UAttributeSet>> essential_FlyingPawn_attribute_sets = { UGASAttributes_FlyingPawn::StaticClass() };
+
+	//Default override necessary for ASC tech
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override { return ASC; }
+
+	//Initialize any startup attributes on the ASC (runs on both server and client)
+	UFUNCTION(Category = "AbilitySystem")
+	void InitASCAttributes(); 
+
+	//Initialize any startup attributes on the ASC (runs on both server and client). Automatically called inside InitASCAttributes function (C++) 
+	UFUNCTION(BlueprintNativeEvent, Category="AbilitySystem")
+	void InitASCAttributesBlueprint();
+
+	//Initialize any startup abilities on the ASC (runs only on server)
+	UFUNCTION(Category = "AbilitySystem")
+	void InitASCAbilities();
+
+
+
 
 //MAKE MOVEMENTS
 	//Translation
 	/*
 	* Inputs contributes to the current "MovementInput" Vector 
 	*/
+	
+	/*
+	* Function should be called every tick
+	* 
+	* Given any thrust inputs made by the user between now and the last tick, processes them and apply them to the pawn 
+	* 
+	* Returns localized force vector that was applied to the pawn (localized meaning it is with respect to local pawn axes not world axes) 
+	*/
+	FVector ResolveThrustInputsThisTick(float delta_time);
+
+	//Function similar to GetLastMovementInputVector but returns the vector unscaled by any acceleration factors that may be applied on input directions. 
+	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs", BlueprintPure)
+	FVector GetLastMovementInputVectorUNSCALED();
 
 	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
 	void ApplyForwardThrust();
@@ -270,6 +330,82 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
 	void ApplyVertThrustDOWN();
+
+	//Rotation
+	
+	/*
+	* Function should be called every tick
+	*
+	* Given any rotational inputs made by the user between now and the last tick, processes them and apply them to the pawn
+	* 
+	* Returns the raw unscaled rotation that was applied on the pawn (raw = independent of delta_time) 
+	*/
+	FRotator ResolveRotationInputsThisTick(float delta_time);
+
+
+	//PITCH
+	//Use this parameter to specify how much pitch should be input every frame (in degrees)
+	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
+	float pitch_input;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
+	bool bDoMaxPitchUp;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
+	bool bDoMaxPitchDown;
+	
+	/*
+	* Gets pitch amount to apply on tick
+	* Should be called within tick function.
+	* To assign pitch or roll, look at setting pitch_input and roll_input attributes
+	*/
+	float HandlePitch(float delta_time);
+
+
+	//YAW
+	
+	float yaw_input; //is set by ApplyYaw function. Is checked every tick to see how it will affect yaw rotation.
+	
+	//Yaw can only be applied as a flat amount of degrees/time currently. 
+	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
+	void ApplyYaw(bool bIsNegative);
+
+	float HandleYaw(float delta_time);
+
+	
+	//ROLL
+
+	//Use this parameter to specify how much roll should be input every frame (in degrees)
+	UPROPERTY(BlueprintReadWrite, Category = "Movement|Inputs")
+	float roll_input;
+
+	//value from -1 to 1 denoting the direction of roll (uses max roll speed to apply)
+	int8 digital_roll_input;
+	/*
+	* Gets roll amount to apply on tick
+	* Should be called within tick function.
+	* To assign pitch or roll, look at setting pitch_input and roll_input attributes
+	*/
+	double HandleRoll(float delta_time);
+
+	//Call this node if wanting to digitally handle roll inputs. Will always send the maximum amount of roll degrees to the pawn. 
+	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
+	void ApplyMaxRoll(bool roll_right);
+
+
+	//Special Movement
+	
+	//apply boost
+	UFUNCTION(BlueprintCallable, Category = "Movement|Afterburner")
+	void ApplyBoost();
+
+	//apply impulse boost. Only applies when the internal cooldown is <= 0.
+	UFUNCTION(BlueprintCallable, Category = "Movement|Afterburner")
+	bool ImpulseBoost(float boost_strength_scaling);
+
+
+
+	//Experimental
 
 	/*
 	* Experimental:
@@ -287,7 +423,7 @@ protected:
 
 	/*
 	* Experimental:
-	*	A flag denoting unique pawn handling. When disabled, the pawn will be considered in decoupled flight, which has faster acceleration but worse handling. 
+	*	A flag denoting unique pawn handling. When disabled, the pawn will be considered in decoupled flight, which has faster acceleration but worse handling.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Advanced")
 	bool bcoupled_flight_enabled;
@@ -300,44 +436,19 @@ protected:
 	bool bthrust_as_velocity;
 
 
-	//Rotation
-	/*
-	* Gets pitch amount to apply on tick
-	* Should be called within tick function.
-	* To assign pitch or roll, look at setting pitch_input and roll_input attributes
-	*/
-	float HandlePitch(float delta_time);
-
-	//Yaw can only be applied as a flat amount of degrees/time currently. 
-	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
-	void ApplyYaw(bool bIsNegative);
-
-	//roll
-	/*
-	* Gets roll amount to apply on tick
-	* Should be called within tick function.
-	* To assign pitch or roll, look at setting pitch_input and roll_input attributes
-	*/
-	double HandleRoll(float delta_time);
-
-	//Call this node if wanting to digitally handle roll inputs. Will always send the maximum amount of roll degrees to the pawn. 
-	UFUNCTION(BlueprintCallable, Category = "Movement|Inputs")
-	void ApplyMaxRoll(bool roll_right);
-
-	//Special Movement
-	
-	//apply boost
-	UFUNCTION(BlueprintCallable, Category = "Movement|Afterburner")
-	void ApplyBoost();
-
-	//apply initial boost as impulse. Only applies when the internal cooldown is <= 0.
-	UFUNCTION(BlueprintCallable, Category = "Movement|Afterburner")
-	bool InitialBoost();
-
-
 
 //AFTER MOVEMENT INPUTS, POST PROCESS MOVEMNENT EVERY FRAME 
 	//Translation
+
+	/*
+	* Function should be called every tick
+	*
+	* Given pawns current movement (specified as parameters), apply some drag to the pawn by directly adding velocity
+	*
+	* Returns the combined change in velocity that was applied to the pawn as a world vector (not localized to the pawn) 
+	*/
+	FVector ResolveDragDecelThisTick(float delta_time, FVector input_forces_this_tick, FVector localized_current_velocity);
+
 	//Generic Drag functions in charge of getting the amount of drag to apply counter to the lingering_velocity 
 	/*
 	* linear functions use ratio (x/c) onto lingering_velocity to find out how much drag to apply. 
@@ -371,11 +482,11 @@ protected:
 	//Other
 	/*
 	* Determine and apply subtle rotational influence on SimulatedBooster component
-	* Based on assumed flight mode of the pawn (Hovering or Jet Flight)
+	* Based on assumed flight mode of the pawn (Hovering or Jet Flight) during the given tick
 	* 
 	* May be one day useful to make this function return or set an ENUM which represents the flight mode types, so that way we can access the flight mode and do additional logic outside this class or in BP.
 	*/
-	void ResolveBoosterMode(FVector current_local_velocity);
+	void ResolveBoosterModeThisTick(FVector current_local_velocity);
 
 
 
@@ -394,4 +505,48 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 
+
+	//Rudimentary replay system so I can test multiplayer against myself 
+	UFUNCTION(BlueprintCallable)
+	void replay_last_movements();
+
+	bool bDo_replay = false; 
+	int frame_counter = 0;
+	TArray<FVector> saved_positions_each_frame;
+	TArray<FRotator> saved_rotations_each_frame;
+
+
+
+	/* 
+	* Experimental aiming system 
+	* variable contributes to both yaw and roll at the same time.
+	* (yaw speed & sensiticity are constrained to max pitch speed & sensitivty)
+	* (roll speed & sensitivity are constrained to normal roll speed & sensitivity) 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool bUse_yaw_roll_input;
+
+	/*
+	* Experimental aiming system
+	* variable contributes to both yaw and roll at the same time.
+	* (yaw speed & sensiticity are constrained to max pitch speed & sensitivty)
+	* (roll speed & sensitivity are constrained to normal roll speed & sensitivity)
+	*/
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	float yaw_roll_input;
+
+	//Special override to make roll influence stronger
+	UPROPERTY(EditAnywhere, Category = "Movement", Meta = (EditCondition = "bUse_yaw_roll_input"))
+	float special_roll_speed;
+
+	//Special override to make yaw influence stronger
+	UPROPERTY(EditAnywhere, Category = "Movement", Meta = (EditCondition = "bUse_yaw_roll_input"))
+	float special_yaw_speed;
+
+	/*
+	* When value is 0, only yaw is applied by yaw_roll_input (will behave like pitch but sideways)
+	* When value is 1, only roll is applied by yaw_roll_input (will behave like normal roll)
+	*/
+	UPROPERTY(EditAnywhere, Category = "Movement",  Meta=(ClampMin="0", ClampMax="1", EditCondition = "bUse_yaw_roll_input"))
+	float special_yaw_roll_ratio;
 };
