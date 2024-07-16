@@ -50,6 +50,9 @@ void AFlyingPawnBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 #endif
 
 
+
+
+
 // Sets default values
 AFlyingPawnBase::AFlyingPawnBase()
 {
@@ -70,43 +73,25 @@ AFlyingPawnBase::AFlyingPawnBase()
 	bDoMaxPitchUp = false;
 
 //External Attribute Defaults
-	base_upward_thrust = 100,000; //equivalent to 2500 velocity every frame (before delta_time scaling)
-	base_downward_thrust = 60,000;
-	base_forward_thrust = 200,000;
-	base_brake_power = 80,000;
-	base_yaw_amnt = 25;	//DEPRECATED
-	yaw_acceleration = 10;
-	max_yaw_speed = 70;
-	max_pitch_speed = 190;
-	max_roll_speed = 250;
+	//base_upward_thrust = 100,000; //equivalent to 2500 velocity every frame (before delta_time scaling)
+	//base_downward_thrust = 60,000; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
+	//base_forward_thrust = 200,000; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
+	//base_brake_power = 80,000; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
+	//yaw_acceleration = 10; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
+	//max_yaw_speed = 70; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
+	//max_pitch_speed = 190; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
+	//max_roll_speed = 250; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
 
-	pitch_sensitivity = 0.5;
+	pitch_sensitivity = 0.55;
 	roll_sensitivity = 15;
-	yaw_sensitivity = 1.0;
+	yaw_sensitivity = 1.0; //Deprecated
 
-	global_acceleration_scaling = 1.5f;
-	upward_accel_scale = 1.0f;
-	forward_accel_scale = 1.0f;
-	backward_accel_scale = 1.0f;
-	downward_accel_scale = 1.0f;
+	yaw_momentum_dropoff = 100;
 
-	YZaxis_vel_soft_cap = 1500;
-	YZaxis_drag_min_soft_cap = 1.0;
+	roll_momentum_dropoff = 0.000001;
 
-	forward_drag_intensity = 3.0;
-	forward_vel_soft_cap = 3500;
-	forward_soft_cap_strength = 1.07;
-
-	backward_drag_intensity = 3.0; 
-	backward_drag_min_soft_cap = 300;
-
-	yaw_momentum_dropoff = 10;
-
-	roll_momentum_dropoff = 0.00001;
-
-	initial_boost_strength = 300,000;
 	initial_boost_cooldown = 0;
-	base_boost_thrust = 100,000;
+	//base_boost_thrust = 100,000; //(set indirectly by UGASAttribute_FlyingPawn Attribute set attributes)
 
 	b_use_ratio_for_boostermode = true;
 	jet_hover_ratio_threshold = 2.5f;
@@ -222,41 +207,6 @@ void AFlyingPawnBase::BeginPlay()
 	//this->BoosterHingeAttachement->UpdateConstraintFrames();
 }
 
-
-
-void AFlyingPawnBase::UpdateBaseThrustFromDelegate(const FOnAttributeChangeData& Data)
-{
-	FString attribute_changed = Data.Attribute.AttributeName;
-	if (attribute_changed.Contains(UGASAttributes_FlyingPawn::GetThrustpowerAttribute().GetName()))
-	{
-		//should safely be able to update all thrust bases regardless if it's the base attribute changing or just the directional ratio (aka lazy, but this function shouldn't be called very frequently)
-		float base_thrust_power_attr = this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpowerAttribute());
-		this->base_forward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_forward_ratioAttribute());
-		this->base_brake_power = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_brake_ratioAttribute());
-		this->base_upward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_up_ratioAttribute());
-		this->base_downward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_down_ratioAttribute());
-		this->base_boost_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_boost_ratioAttribute());
-	}
-}
-
-
-
-void AFlyingPawnBase::InitInternalBaseThrustsUsingAttributeSet()
-{
-	float base_thrust_power_attr = this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpowerAttribute());
-	this->base_forward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_forward_ratioAttribute());
-	this->base_brake_power = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_brake_ratioAttribute());
-	this->base_upward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_up_ratioAttribute());
-	this->base_downward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_down_ratioAttribute());
-	this->base_boost_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_boost_ratioAttribute());
-
-	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpowerAttribute()).AddUObject(this, &AFlyingPawnBase::UpdateBaseThrustFromDelegate);
-	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_forward_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::UpdateBaseThrustFromDelegate);
-	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_brake_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::UpdateBaseThrustFromDelegate);
-	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_up_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::UpdateBaseThrustFromDelegate);
-	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_down_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::UpdateBaseThrustFromDelegate);
-	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_boost_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::UpdateBaseThrustFromDelegate);
-}
 
 
 
@@ -376,7 +326,7 @@ void AFlyingPawnBase::Tick(float DeltaTime)
 		//debug
 
 
-		GEngine->AddOnScreenDebugMessage(1231237, 5, FColor::Blue, FString::Printf(TEXT("Attribute Check asc %f"), this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpowerAttribute())));
+		GEngine->AddOnScreenDebugMessage(1231237, 5, FColor::Blue, FString::Printf(TEXT("Attribute Check asc %f, %f"), this->YZaxis_drag_asymptote, this->YZaxis_vel_soft_cap));
 		
 
 
@@ -477,12 +427,22 @@ void AFlyingPawnBase::PostNetReceiveLocationAndRotation()
   
 void AFlyingPawnBase::InitASCAttributes()
 {
-	//Any intial Gameplay Effects apply here 
+//Any intial Gameplay Effects apply here 
 
-	//Goodplace to setup delegate listeners here since we expect ASC to be valid inside this function
-	InitInternalBaseThrustsUsingAttributeSet(); 
+//Goodplace to setup delegate listeners here since we expect ASC to be valid inside this function
+	//init internalize actor properties while setting up delegates
+	this->InitInternalPawnThrustsUsingAttributeSet(); 
+	this->InitInternalDragValuesUsingAttributeSet();
 
-	InitASCAttributesBlueprint();
+	//setup listeners for further changes
+	this->ASC->GetGameplayAttributeValueChangeDelegate(
+		UGASAttributes_FlyingPawn::GetDragpower_offset_forwardAttribute()).AddUObject(this, &AFlyingPawnBase::OnDragOffsetAttributeChangeDelegate);
+	this->ASC->GetGameplayAttributeValueChangeDelegate(
+		UGASAttributes_FlyingPawn::GetDragpower_offset_yzAttribute()).AddUObject(this, &AFlyingPawnBase::OnDragOffsetAttributeChangeDelegate);
+
+
+//Finally call blueprint implemented event. 
+	this->InitASCAttributesBlueprint();
 }
 
 
@@ -502,16 +462,84 @@ void AFlyingPawnBase::InitASCAbilities()
 
 
 
+void AFlyingPawnBase::OnThrustAttributeChangeDelegate(const FOnAttributeChangeData& Data)
+{
+	FString attribute_changed = Data.Attribute.AttributeName;
+	if (attribute_changed.Contains(UGASAttributes_FlyingPawn::GetThrustpowerAttribute().GetName()))
+	{
+		//should safely be able to update all thrust bases regardless if it's the base attribute changing or just the directional ratio (aka lazy, but this function shouldn't be called very frequently)
+		//float base_thrust_power_attr = this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpowerAttribute());
+		float base_thrust_power_attr = this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpowerAttribute());
+		this->pawn_forward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_forward_ratioAttribute());
+		this->pawn_brake_power = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_brake_ratioAttribute());
+		this->pawn_upward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_up_ratioAttribute());
+		this->pawn_downward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_down_ratioAttribute());
+		this->pawn_boost_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_boost_ratioAttribute());
+
+
+		//do if specifically the Thrustpower attribute
+		if (attribute_changed.Equals(UGASAttributes_FlyingPawn::GetThrustpowerAttribute().GetName()))
+		{
+			//Update velocity hard caps by some proportion of Thrustpower
+			SetForwardDragAsymptote(Data.NewValue);
+			SetYZDragAsymptote(Data.NewValue);
+		}
+	}
+
+	//Update additional internal properties that rely on properties modified by Thrustpower
+	if (attribute_changed.Contains(UGASAttributes_FlyingPawn::GetThrustpowerAttribute().GetName()))
+	{
+		UpdatePawnVelSoftCaps(Data, false);
+	}
+
+}
+
+
+
+void AFlyingPawnBase::OnDragOffsetAttributeChangeDelegate(const FOnAttributeChangeData& Data)
+{
+	UpdatePawnVelSoftCaps(Data, false);
+}
+
+
+
+void AFlyingPawnBase::InitInternalPawnThrustsUsingAttributeSet()
+{
+	float base_thrust_power_attr = this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpowerAttribute());
+	this->pawn_forward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_forward_ratioAttribute());
+	this->pawn_brake_power = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_brake_ratioAttribute());
+	this->pawn_upward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_up_ratioAttribute());
+	this->pawn_downward_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_down_ratioAttribute());
+	this->pawn_boost_thrust = base_thrust_power_attr * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpower_boost_ratioAttribute());
+
+	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpowerAttribute()).AddUObject(this, &AFlyingPawnBase::OnThrustAttributeChangeDelegate);
+	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_forward_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::OnThrustAttributeChangeDelegate);
+	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_brake_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::OnThrustAttributeChangeDelegate);
+	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_up_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::OnThrustAttributeChangeDelegate);
+	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_down_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::OnThrustAttributeChangeDelegate);
+	this->ASC->GetGameplayAttributeValueChangeDelegate(UGASAttributes_FlyingPawn::GetThrustpower_boost_ratioAttribute()).AddUObject(this, &AFlyingPawnBase::OnThrustAttributeChangeDelegate);
+}
+
+
+
+void AFlyingPawnBase::InitInternalDragValuesUsingAttributeSet()
+{
+	//Set drag asymptote (velocity hard cap) by some proportion of Thrustpower
+	float thrustpower_attr = this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetThrustpowerAttribute());
+	SetForwardDragAsymptote(thrustpower_attr);
+	SetYZDragAsymptote(thrustpower_attr);
+
+	//Set velocity soft caps (must be down after asymptote is set because soft-cap depends on asymptote
+	this->UpdatePawnVelSoftCaps(FOnAttributeChangeData(), true);
+}
+
+
+
+
 FVector AFlyingPawnBase::ResolveThrustInputsThisTick(float delta_time)
 {
 	FRotator local_axes_rotator = MainBody->GetRelativeRotation();
 	FVector force_from_incoming_input = this->ConsumeMovementInputVector() * (double)this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute()); //get acceleration to apply this frame * scaling factor
-
-	/*EXPERIMENTAL increase thrust in all directions from flight mode*/
-	if (!this->bcoupled_flight_enabled)
-	{
-		force_from_incoming_input = force_from_incoming_input * 1.5;
-	}
 
 	//Add input to the pawn
 	/*EXPERIMENTAL (can't really tell a difference between velocity and thrust overall)*/
@@ -532,18 +560,27 @@ FVector AFlyingPawnBase::ResolveThrustInputsThisTick(float delta_time)
 
 FVector AFlyingPawnBase::GetLastMovementInputVectorUNSCALED()
 {
-	FVector raw_movement_input = this->GetLastMovementInputVector();
-	float x_input = raw_movement_input.X >= 0 ? raw_movement_input.X / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_forwardAttribute()) : raw_movement_input.X / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_backwardAttribute());
-	float y_input = raw_movement_input.Y;
-	float z_input = raw_movement_input.Z >= 0 ? raw_movement_input.Z / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_upAttribute()) : raw_movement_input.Z / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_downAttribute());
-	return FVector(x_input, y_input, z_input);
+	if (IsLocallyControlled())
+	{
+		FVector raw_movement_input = this->GetLastMovementInputVector();
+		float x_input = raw_movement_input.X >= 0 ? raw_movement_input.X / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_forwardAttribute()) : raw_movement_input.X / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_backwardAttribute());
+		float y_input = raw_movement_input.Y;
+		float z_input = raw_movement_input.Z >= 0 ? raw_movement_input.Z / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_upAttribute()) : raw_movement_input.Z / this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_downAttribute());
+		return FVector(x_input, y_input, z_input);
+	}
+	//TODO: return something based on simulated movement handler's input 
+	else
+	{
+		return FVector(0, 0, 0);
+	}
+
 }
 
 
 
 void AFlyingPawnBase::ApplyForwardThrust()
 {
-	FVector desired_movement = FVector(base_forward_thrust, 0, 0);
+	FVector desired_movement = FVector(pawn_forward_thrust, 0, 0);
 	this->AddMovementInput(desired_movement * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_forwardAttribute()));
 }
 
@@ -558,7 +595,7 @@ void AFlyingPawnBase::ApplyForwardBrake()
 
 	if (lingering_x_velocity > 0)
 	{
-		FVector desired_movement = FVector(-1 * base_brake_power, 0, 0);
+		FVector desired_movement = FVector(-1 * pawn_brake_power, 0, 0);
 		this->AddMovementInput(desired_movement * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_backwardAttribute()));
 	}
 
@@ -568,7 +605,7 @@ void AFlyingPawnBase::ApplyForwardBrake()
 
 void AFlyingPawnBase::ApplyVertThrustUP()
 {
-	FVector desired_movement = FVector(0, 0, base_upward_thrust);
+	FVector desired_movement = FVector(0, 0, pawn_upward_thrust);
 	this->AddMovementInput(desired_movement * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_upAttribute()));
 }
 
@@ -576,7 +613,7 @@ void AFlyingPawnBase::ApplyVertThrustUP()
 
 void AFlyingPawnBase::ApplyVertThrustDOWN()
 {
-	FVector desired_movement = FVector(0, 0, -1 * base_downward_thrust);
+	FVector desired_movement = FVector(0, 0, -1 * pawn_downward_thrust);
 	this->AddMovementInput(desired_movement * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactor_downAttribute()));
 }
 
@@ -591,10 +628,10 @@ FRotator AFlyingPawnBase::ResolveRotationInputsThisTick(float delta_time)
 	this->incoming_input_rotation.Yaw = HandleYaw(delta_time);
 
 	//Apply angular roll momentum if slowing down or changing direction
-	this->incoming_input_rotation.Roll = bcoupled_flight_enabled ? HandleRoll(delta_time) : 0.5f * HandleRoll(delta_time);
+	this->incoming_input_rotation.Roll = HandleRoll(delta_time);
 
 	//Handle Pitch
-	this->incoming_input_rotation.Pitch = bcoupled_flight_enabled ? HandlePitch(delta_time) : 0.5f * HandlePitch(delta_time);
+	this->incoming_input_rotation.Pitch = HandlePitch(delta_time);
 
 	//Add all rotators together to the current rotation (input rotation is usually already scaled by time) 
 	this->AddActorLocalRotation(this->incoming_input_rotation);
@@ -608,28 +645,6 @@ FRotator AFlyingPawnBase::ResolveRotationInputsThisTick(float delta_time)
 
 
 	return latest_rotational_velocity;
-}
-
-
-
-void AFlyingPawnBase::SimDecoupledFlight(FVector localized_velocity_linger, float DeltaTime)
-{
-	FVector X_drag_velocity = GetXDrag(localized_velocity_linger.X, DeltaTime);
-	MainBody->SetPhysicsLinearVelocity(X_drag_velocity, /*addtocurrent*/ true);
-
-	FVector YZ_drag_velocity = GetYZDrag(FVector(0, localized_velocity_linger.Y, localized_velocity_linger.Z), DeltaTime);
-	MainBody->SetPhysicsLinearVelocity(YZ_drag_velocity, /*addtocurrent*/ true);
-}
-
-
-
-void AFlyingPawnBase::SimCoupledFlight(FVector localized_velocity_linger, float DeltaTime)
-{
-	FVector X_drag_velocity = GetXDrag(localized_velocity_linger.X, DeltaTime);
-	MainBody->SetPhysicsLinearVelocity(X_drag_velocity, /*addtocurrent*/ true);
-
-	FVector YZ_drag_velocity = GetYZDrag(FVector(0, localized_velocity_linger.Y, localized_velocity_linger.Z), DeltaTime);
-	MainBody->SetPhysicsLinearVelocity(YZ_drag_velocity, /*addtocurrent*/ true);
 }
 
 
@@ -783,7 +798,7 @@ void AFlyingPawnBase::ApplyMaxRoll(bool roll_right)
 
 
 
-	this->AddMovementInput(boost_direction * this->base_boost_thrust);
+	this->AddMovementInput(boost_direction * this->pawn_boost_thrust);
 	GEngine->AddOnScreenDebugMessage(552, 1, FColor::Green, FString::Printf(TEXT("552 Boost Direction From Local %s"), *boost_direction.ToString()));
 }
 
@@ -931,48 +946,34 @@ FVector AFlyingPawnBase::GetXDrag(float lingering_x_velocity, float delta_time)
 		*
 		* Steady state exists when added velocity each frame (acceleration) equals the drag, which is equal to the actual current velocity (lingering velocity) divided by c. This only holds true when soft_cap_strength is 1 though; otherwise it would be non-linear. 
 		*/
-		if (this->bcoupled_flight_enabled)
+		if (lingering_x_velocity >= this->forward_vel_soft_cap)
 		{
-			if (lingering_x_velocity >= this->forward_vel_soft_cap)
-			{
-				//OG DRAG I GUESS
-				//float drag_proportion = lingering_x_velocity / this->forward_drag_intensity;
-				//float drag_proportion_after_exp = FMath::Pow(drag_proportion, this->forward_soft_cap_strength);
-				//return -1.0f * MainBody->GetForwardVector() * drag_proportion_after_exp * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
+			//OG DRAG I GUESS
+			//float drag_proportion = lingering_x_velocity / this->forward_drag_intensity;
+			//float drag_proportion_after_exp = FMath::Pow(drag_proportion, this->forward_soft_cap_strength);
+			//return -1.0f * MainBody->GetForwardVector() * drag_proportion_after_exp * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
 				
-				//TANGENT FUNCTION DRAG ZAMN
-				//double period_scale = 10000;
-				//double shift_phase = 9000;	
-				//double function_curvature = 1000;
-				//double magnitude_shift = 2200;
-				////check if velocity surpassed (or atleast close to) asymptote due to impulse or other shenangains?
-				//double x = lingering_x_velocity >= 22000 ? 22000 : lingering_x_velocity;
-				//double math = (function_curvature / (FMath::Tan((lingering_x_velocity + shift_phase) / period_scale))) - magnitude_shift;
-				//return math * MainBody->GetForwardVector() * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute()); //dont need to multiply by -1 for this 
+			//TANGENT FUNCTION DRAG ZAMN
+			//double period_scale = 10000;
+			//double shift_phase = 9000;	
+			//double function_curvature = 1000;
+			//double magnitude_shift = 2200;
+			////check if velocity surpassed (or atleast close to) asymptote due to impulse or other shenangains?
+			//double x = lingering_x_velocity >= 22000 ? 22000 : lingering_x_velocity;
+			//double math = (function_curvature / (FMath::Tan((lingering_x_velocity + shift_phase) / period_scale))) - magnitude_shift;
+			//return math * MainBody->GetForwardVector() * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute()); //dont need to multiply by -1 for this 
 
-				//1/x-c FUNCTION DRAG BOINGOZOINGO
-				double curvature = 15 * 1e6; //millions ._. 15
-				double asymptote = 22000; 
-				double magnitude_shift = 1300; //0
-				//check if velocity surpassed (or atleast close to) asymptote due to impulse or other shenangains?
-				double x = lingering_x_velocity >= asymptote - 500 ? asymptote - 500 : lingering_x_velocity;
-				double math = (curvature / (x - asymptote)) - magnitude_shift;
-				return math * MainBody->GetForwardVector() * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
+			//1/x-c FUNCTION DRAG BOINGOZOINGO
+			double curvature = this->forward_drag_func_curvature;
+			double asymptote = this->forward_drag_asymptote;
+			double magnitude_shift = this->foward_drag_func_magnitude_shift;
+			//check if velocity surpassed (or atleast close to) asymptote due to impulse or other shenangains?
+			double x = lingering_x_velocity >= asymptote - 500 ? asymptote - 500 : lingering_x_velocity;
+			double math = (curvature / (x - asymptote)) - magnitude_shift;
+			return math * MainBody->GetForwardVector() * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
 
 
-			}
 		}
-		else
-		{
-			if (lingering_x_velocity >= this->forward_vel_soft_cap + this->forward_decoupled_offset)
-			{
-				float drag_proportion = lingering_x_velocity / this->forward_drag_intensity;
-				float drag_proportion_after_exp = FMath::Pow(drag_proportion, this->forward_soft_cap_strength);
-
-				return -1.0f * MainBody->GetForwardVector() * drag_proportion_after_exp * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
-			}
-		}
-
 
 		//drag to apply when less than softcap
 		return -1.0f * MainBody->GetForwardVector() * 100 /*could be modified by minimum forward drag*/ * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute()); 
@@ -1007,48 +1008,37 @@ FVector AFlyingPawnBase::GetYZDrag(FVector lingering_yz_velocity, float delta_ti
 	* 
 	* Steady state exists when added velocity each frame (acceleration) equals the drag which is equal to the actual current velocity (lingering velocity)
 	*/
-	if (this->bcoupled_flight_enabled)
+	if (lingering_yz_velocity.Length() > this->YZaxis_vel_soft_cap)
 	{
-		if (lingering_yz_velocity.Length() > this->YZaxis_vel_soft_cap)
-		{
-			FRotator local_axis_rotator = MainBody->GetRelativeRotation();
+		FRotator local_axis_rotator = MainBody->GetRelativeRotation();
 
-			//double math = FMath::Pow(.001 * (lingering_yz_velocity.Length()) + 6, 3);
-			//FVector thing = math * lingering_yz_velocity.GetSafeNormal();
-			//return -1.0f * local_axis_rotator.RotateVector(thing) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
+		//double math = FMath::Pow(.001 * (lingering_yz_velocity.Length()) + 6, 3);
+		//FVector thing = math * lingering_yz_velocity.GetSafeNormal();
+		//return -1.0f * local_axis_rotator.RotateVector(thing) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
 
-			//TANGENT FUNCTION DRAG ZAMN
-			//double period_scale = 5000;
-			//double shift_phase = 3000;	
-			//double function_curvature = 1000;
-			//double magnitude_shift = 3000;
-			//double math = (function_curvature / (FMath::Tan((lingering_yz_velocity.Length() + shift_phase) / period_scale))) - magnitude_shift;
-			//FVector thing = math * lingering_yz_velocity.GetSafeNormal();
-			//return local_axis_rotator.RotateVector(thing) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute()); //dont need to multiply by -1 for this 
+		//TANGENT FUNCTION DRAG ZAMN
+		//double period_scale = 5000;
+		//double shift_phase = 3000;	
+		//double function_curvature = 1000;
+		//double magnitude_shift = 3000;
+		//double math = (function_curvature / (FMath::Tan((lingering_yz_velocity.Length() + shift_phase) / period_scale))) - magnitude_shift;
+		//FVector thing = math * lingering_yz_velocity.GetSafeNormal();
+		//return local_axis_rotator.RotateVector(thing) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute()); //dont need to multiply by -1 for this 
 
-			//1/x-c FUNCTION DRAG BOINGOZOINGO
-			double curvature = 5 * 1e6; //millions ._.
-			double asymptote = 9000;
-			double magnitude_shift = 1700;
-			//check if velocity surpassed (or atleast close to) asymptote due to impulse or other shenangains?
-			double x = lingering_yz_velocity.Length() >= asymptote - 500 ? asymptote - 500 : lingering_yz_velocity.Length();
-			double math = (curvature / (x - asymptote)) - magnitude_shift;
-			FVector thing = math * lingering_yz_velocity.GetSafeNormal();
-			return local_axis_rotator.RotateVector(thing) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
+		//1/x-c FUNCTION DRAG BOINGOZOINGO
+		double curvature = this->YZaxis_drag_func_curvature;
+		double asymptote = this->YZaxis_drag_asymptote;
+		double magnitude_shift = this->YZaxis_drag_func_magnitude_shift;
+		//check if velocity surpassed (or atleast close to) asymptote due to impulse or other shenangains?
+		double x = lingering_yz_velocity.Length() >= asymptote - 500 ? asymptote - 500 : lingering_yz_velocity.Length();
+		double math = (curvature / (x - asymptote)) - magnitude_shift;
+		FVector thing = math * lingering_yz_velocity.GetSafeNormal();
+		return local_axis_rotator.RotateVector(thing) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
 
 
 
-			//OG bingobongop
-			//return -1.0f * local_axis_rotator.RotateVector(lingering_yz_velocity) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
-		}
-	}
-	else
-	{
-		if (lingering_yz_velocity.Length() > this->YZaxis_vel_soft_cap + this->YZAxis_decoupled_offset)
-		{
-			FRotator local_axis_rotator = MainBody->GetRelativeRotation();
-			return -1.0f * local_axis_rotator.RotateVector(lingering_yz_velocity) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
-		}
+		//OG bingobongop
+		//return -1.0f * local_axis_rotator.RotateVector(lingering_yz_velocity) * delta_time * this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetAccelfactorAttribute());
 	}
 
 	/*
@@ -1059,6 +1049,51 @@ FVector AFlyingPawnBase::GetYZDrag(FVector lingering_yz_velocity, float delta_ti
 	FVector drag_amount = DragFromLOG(lingering_yz_velocity, delta_time, 1 /*could be modified by minimum yz drag*/);
 
 	return local_axis_rotator.RotateVector(drag_amount); //convert the drag expressed along the local axis to world coordinates
+}
+
+
+
+void AFlyingPawnBase::UpdatePawnVelSoftCaps(const FOnAttributeChangeData& Data, bool initialize)
+{
+	FString changed_attribute_name = "";
+	if (!initialize) {
+		changed_attribute_name = Data.Attribute.GetName();
+	}
+
+	//call is from thrustpower being modified, (must assume forward_vel_asymptote has already been changed due to change in thrustpower)
+	if (initialize || changed_attribute_name.Contains(UGASAttributes_FlyingPawn::GetThrustpowerAttribute().GetName()))
+	{
+		//forward soft cap
+		double curvature = this->forward_drag_func_curvature;
+		double magnitude_shift = this->foward_drag_func_magnitude_shift;
+		double asymptote = this->forward_drag_asymptote;
+		double const_accel_from_thrust = (this->pawn_forward_thrust / this->MainBody->GetMass());
+
+		double temp = (curvature / (magnitude_shift - const_accel_from_thrust)) + asymptote;
+		this->forward_vel_soft_cap = temp - this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetDragpower_offset_forwardAttribute());
+
+
+		//YZ axis soft cap
+		curvature = this->YZaxis_drag_func_curvature;
+		magnitude_shift = this->YZaxis_drag_func_magnitude_shift;
+		asymptote = this->YZaxis_drag_asymptote;
+		const_accel_from_thrust = (FMath::Max(this->pawn_upward_thrust, this->pawn_downward_thrust) / this->MainBody->GetMass()); //reasoning for Max between up and down thrust is to make sure the soft_cap isn't artifically capped early due to one of the thrust directions being particularly weak. The lesser thrust will might potentially be capable of reaching higher than intended soft-cap speeds but it should be overall better for consistency of movement. (No sudden clipping of velocity due to rotating from up to down relative to lingering velocity.
+		//(though that could be a feature in the future if we want to expand on movement mechanics)
+
+		temp = (curvature / (magnitude_shift - const_accel_from_thrust)) + asymptote;
+		this->YZaxis_vel_soft_cap = temp - this->ASC->GetNumericAttribute(UGASAttributes_FlyingPawn::GetDragpower_offset_yzAttribute());
+	}
+	//call is from offset being modified
+	else if (changed_attribute_name.Equals(UGASAttributes_FlyingPawn::GetDragpower_offset_forwardAttribute().GetName()))
+	{
+		this->forward_vel_soft_cap = this->forward_vel_soft_cap + (Data.OldValue - Data.NewValue);
+	}
+	//call is from offset being modified
+	else if (changed_attribute_name.Equals(UGASAttributes_FlyingPawn::GetDragpower_offset_yzAttribute().GetName()))
+	{
+		this->YZaxis_vel_soft_cap = this->YZaxis_vel_soft_cap + (Data.OldValue - Data.NewValue);
+	}
+
 }
 
 
@@ -1100,5 +1135,18 @@ void AFlyingPawnBase::ResolveBoosterModeThisTick(FVector current_local_velocity)
 
 
 
+void AFlyingPawnBase::SetYZDragAsymptote(float asymptote_scaling_factor)
+{
+	const float thrust_weight_factor = 1.0e5; //100,000
+	this->YZaxis_drag_asymptote = this->YZaxis_drag_func_asymptote_base * (1 + FMath::LogX(10, asymptote_scaling_factor / thrust_weight_factor));
+}
+
+
+
+void AFlyingPawnBase::SetForwardDragAsymptote(float asymptote_scaling_factor)
+{
+	const float thrust_weight_factor = 1.0e5; //100,000
+	this->forward_drag_asymptote = this->forward_drag_func_asymptote_base * (1 + FMath::LogX(10, asymptote_scaling_factor / thrust_weight_factor));
+}
 
 

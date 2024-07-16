@@ -67,6 +67,12 @@ public:
 
 
 	// ACCELERATION FACTOR
+	/*
+	* Modifier to increase acceleration amount without affecting velocity soft-cap thresholds of the pawn.
+	*
+	* Multiplied to thrust amount and drag amount to balance between the two forces
+	* Makes the pawn acceleration (and deceleration) feel more responsive.
+	*/
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Accelfactor)
 	FGameplayAttributeData Accelfactor;
 	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Accelfactor)
@@ -89,18 +95,22 @@ public:
 
 
 	// ROTATION
+	//Max amount of degrees the pawn can pitch per second
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Pitchspeed)
 	FGameplayAttributeData Pitchspeed;
 	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Pitchspeed)
 
+	//Max amount of degrees per second the pawn can yaw left or right
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Yawspeed)
 	FGameplayAttributeData Yawspeed;
 	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Yawspeed)
 
+	//How quickly the pawn reaches max yaw speed
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Yawspeed_accel)
 	FGameplayAttributeData Yawspeed_accel;
 	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Yawspeed_accel)
 
+	//Max amount of degrees the pawn can roll per second
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Rollspeed)
 	FGameplayAttributeData Rollspeed;
 	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Rollspeed)
