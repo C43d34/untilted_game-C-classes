@@ -39,27 +39,27 @@ public:
 	FGameplayAttributeData Thrustpower;
 	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower)
 
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_up)
-	FGameplayAttributeData Thrustpower_up;
-	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_up)
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_up_ratio)
+	FGameplayAttributeData Thrustpower_up_ratio;
+	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_up_ratio)
 
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_down)
-	FGameplayAttributeData Thrustpower_down;
-	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_down)
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_down_ratio)
+	FGameplayAttributeData Thrustpower_down_ratio;
+	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_down_ratio)
 
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_forward)
-	FGameplayAttributeData Thrustpower_forward;
-	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_forward)
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_forward_ratio)
+	FGameplayAttributeData Thrustpower_forward_ratio;
+	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_forward_ratio)
 
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_brake)
-	FGameplayAttributeData Thrustpower_brake;
-	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_brake)
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_brake_ratio)
+	FGameplayAttributeData Thrustpower_brake_ratio;
+	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_brake_ratio)
 
 
 	// SPECIAL THRUST (BOOSTING)
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_boost)
-	FGameplayAttributeData Thrustpower_boost;
-	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_boost)
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Thrustpower_boost_ratio)
+	FGameplayAttributeData Thrustpower_boost_ratio;
+	ATTRIBUTE_ACCESSORS(UGASAttributes_FlyingPawn, Thrustpower_boost_ratio)
 
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes|FlyingPawn", ReplicatedUsing = OnRep_Impulsepower_boost)
 	FGameplayAttributeData Impulsepower_boost;
@@ -141,19 +141,19 @@ public:
 	virtual void OnRep_Thrustpower(const FGameplayAttributeData& OldThrustpower);
 
 	UFUNCTION()
-	virtual void OnRep_Thrustpower_up(const FGameplayAttributeData& OldThrustpower_up);
+	virtual void OnRep_Thrustpower_up_ratio(const FGameplayAttributeData& OldThrustpower_up_ratio);
 
 	UFUNCTION()
-	virtual void OnRep_Thrustpower_down(const FGameplayAttributeData& OldThrustpower_down);
+	virtual void OnRep_Thrustpower_down_ratio(const FGameplayAttributeData& OldThrustpower_down_ratio);
 
 	UFUNCTION()
-	virtual void OnRep_Thrustpower_forward(const FGameplayAttributeData& OldThrustpower_forward);
+	virtual void OnRep_Thrustpower_forward_ratio(const FGameplayAttributeData& OldThrustpower_forward_ratio);
 
 	UFUNCTION()
-	virtual void OnRep_Thrustpower_brake(const FGameplayAttributeData& OldThrustpower_brake);
+	virtual void OnRep_Thrustpower_brake_ratio(const FGameplayAttributeData& OldThrustpower_brake_ratio);
 
 	UFUNCTION()
-	virtual void OnRep_Thrustpower_boost(const FGameplayAttributeData& OldThrustpower_boost);
+	virtual void OnRep_Thrustpower_boost_ratio(const FGameplayAttributeData& OldThrustpower_boost_ratio);
 
 	UFUNCTION()
 	virtual void OnRep_Impulsepower_boost(const FGameplayAttributeData& OldImpulsepower_boost);

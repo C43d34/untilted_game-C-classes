@@ -12,14 +12,14 @@ void UGASAttributes_FlyingPawn::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-    //some of these might be only necessary to set initial only such as the sub attributes Thrustpower_up, _down, ....
+    //some of these might be only necessary to set initial only such as the sub attributes Thrustpower_up_ratio, _down, ....
 
     DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower, COND_AutonomousOnly, REPNOTIFY_Always);
-    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_up, COND_AutonomousOnly, REPNOTIFY_Always);
-    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_down, COND_AutonomousOnly, REPNOTIFY_Always);
-    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_forward, COND_AutonomousOnly, REPNOTIFY_Always);
-    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_brake, COND_AutonomousOnly, REPNOTIFY_Always);
-    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_boost, COND_AutonomousOnly, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_up_ratio, COND_AutonomousOnly, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_down_ratio, COND_AutonomousOnly, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_forward_ratio, COND_AutonomousOnly, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_brake_ratio, COND_AutonomousOnly, REPNOTIFY_Always);
+    DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Thrustpower_boost_ratio, COND_AutonomousOnly, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Impulsepower_boost, COND_AutonomousOnly, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Accelfactor, COND_AutonomousOnly, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(UGASAttributes_FlyingPawn, Accelfactor_up, COND_AutonomousOnly, REPNOTIFY_Always);
@@ -44,29 +44,29 @@ void UGASAttributes_FlyingPawn::OnRep_Thrustpower(const FGameplayAttributeData& 
     GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower, OldThrustpower);
 }
 
-void UGASAttributes_FlyingPawn::OnRep_Thrustpower_up(const FGameplayAttributeData& OldThrustpower_up)
+void UGASAttributes_FlyingPawn::OnRep_Thrustpower_up_ratio(const FGameplayAttributeData& OldThrustpower_up_ratio)
 {
-    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_up, OldThrustpower_up);
+    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_up_ratio, OldThrustpower_up_ratio);
 }
 
-void UGASAttributes_FlyingPawn::OnRep_Thrustpower_down(const FGameplayAttributeData& OldThrustpower_down)
+void UGASAttributes_FlyingPawn::OnRep_Thrustpower_down_ratio(const FGameplayAttributeData& OldThrustpower_down_ratio)
 {
-    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_down, OldThrustpower_down);
+    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_down_ratio, OldThrustpower_down_ratio);
 }
 
-void UGASAttributes_FlyingPawn::OnRep_Thrustpower_forward(const FGameplayAttributeData& OldThrustpower_forward)
+void UGASAttributes_FlyingPawn::OnRep_Thrustpower_forward_ratio(const FGameplayAttributeData& OldThrustpower_forward_ratio)
 {
-    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_forward, OldThrustpower_forward);
+    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_forward_ratio, OldThrustpower_forward_ratio);
 }
 
-void UGASAttributes_FlyingPawn::OnRep_Thrustpower_brake(const FGameplayAttributeData& OldThrustpower_brake)
+void UGASAttributes_FlyingPawn::OnRep_Thrustpower_brake_ratio(const FGameplayAttributeData& OldThrustpower_brake_ratio)
 {
-    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_brake, OldThrustpower_brake);
+    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_brake_ratio, OldThrustpower_brake_ratio);
 }
 
-void UGASAttributes_FlyingPawn::OnRep_Thrustpower_boost(const FGameplayAttributeData& OldThrustpower_boost)
+void UGASAttributes_FlyingPawn::OnRep_Thrustpower_boost_ratio(const FGameplayAttributeData& OldThrustpower_boost_ratio)
 {
-    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_boost, OldThrustpower_boost);
+    GAMEPLAYATTRIBUTE_REPNOTIFY(UGASAttributes_FlyingPawn, Thrustpower_boost_ratio, OldThrustpower_boost_ratio);
 }
 
 void UGASAttributes_FlyingPawn::OnRep_Impulsepower_boost(const FGameplayAttributeData& OldImpulsepower_boost)

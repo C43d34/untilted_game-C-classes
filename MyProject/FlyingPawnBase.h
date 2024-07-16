@@ -47,6 +47,14 @@ private:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+
+	//Function assigned to be called by a delegate that fires whenever any thrust oriented attribute is changed 
+	void UpdateBaseThrustFromDelegate(const FOnAttributeChangeData& Data);
+
+	//Uses attributes from UGASAttributes_FlyingPawn to initialzie base thrust for movement of this actor 
+	void InitInternalBaseThrustsUsingAttributeSet();
+
+
 public:
 	// Sets default values for this pawn's properties
 	AFlyingPawnBase();
@@ -210,7 +218,7 @@ public:
 
 	//Steady afterburner power that fires independently of initial boost (no cooldown). 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Afterburner")
-	float boost_strength;
+	float base_boost_thrust;
 
 
 
